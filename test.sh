@@ -1,2 +1,3 @@
 #!/bin/bash
-cargo run
+./build.sh
+./target/debug/projekt-backend

@@ -2,16 +2,16 @@
 ## Docs
 ### Acces points
 #### /api/get/posts/by-user/{id}
- - Get: multiple **Message**
+ - Get: list of **Post**
  - Note: Only from user {id}
 #### /api/get/posts/all
- - Get: multiple **Message**
+ - Get: list of **Post**
 #### /api/post
- - Post: 1x **Message**
- - Effect: Adds a message to the db
+ - Post: 1x **Post**
+ - Effect: Adds a post to the db
 ### Types
 ```
-Message {
+Post {
     user_id: i32
     body: string (max 2048 chars)
 }

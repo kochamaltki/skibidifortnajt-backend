@@ -14,7 +14,7 @@ pub struct PostList {
 }
 
 pub struct User {
-    pub id: u32,
+    pub id: i32,
     pub name: String
 }
 
@@ -54,7 +54,8 @@ pub async fn get_messages() -> Result<impl warp::Reply, warp::Rejection> {
     let post = PostList {
         post_list
     };
-    Ok(warp::reply::json(&post))}
+    Ok(warp::reply::json(&post))
+}
 
 pub async fn post_message(message: Post) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = sqlite::open("projekt-db").unwrap();
@@ -92,6 +93,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
     let post_message = warp::post()
         .and(warp::path("api"))
         .and(warp::path("post"))
+        .and(warp::path("add-message"))
         .and(warp::path::end())
         .and(post_json())
         .and_then(post_message);

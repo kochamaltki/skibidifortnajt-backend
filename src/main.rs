@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use sqlite::State;
 use warp::Filter;
+mod getToken;
+
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Post {
@@ -54,7 +56,16 @@ pub async fn get_messages() -> Result<impl warp::Reply, warp::Rejection> {
     let post = PostList {
         post_list
     };
-    Ok(warp::reply::json(&post))}
+    Ok(warp::reply::json(&post))
+}
+
+pub async fn make_token(user_id: i32) -> Result<impl warp::Reply, warp::Rejection> {
+    
+    let token = getToken::create_jwt(user_id);
+
+
+    Ok(warp::reply::json(&token))
+}
 
 pub async fn post_message(message: Post) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = sqlite::open("projekt-db").unwrap();
@@ -66,6 +77,8 @@ pub async fn post_message(message: Post) -> Result<impl warp::Reply, warp::Rejec
             warp::http::StatusCode::CREATED,
     ))
 }
+
+
 
 fn post_json() -> impl Filter<Extract = (Post,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
@@ -88,6 +101,14 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path("all"))
         .and(warp::path::end())
         .and_then(get_messages);
+
+    let make_token = warp::get()
+        .and(warp::path("api"))
+        .and(warp::path("get"))
+        .and(warp::path("token"))
+        .and(warp::path::param())
+        .and(warp::path::end())
+        .and_then(make_token);
 
     let post_message = warp::post()
         .and(warp::path("api"))

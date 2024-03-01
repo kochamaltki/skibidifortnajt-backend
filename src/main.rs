@@ -13,7 +13,7 @@ pub struct Post {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct PostList {
-    pub messages: Vec<Post>
+    pub post_list: Vec<Post>
 }
 
 pub struct User {
@@ -29,7 +29,7 @@ pub async fn get_message_by_user(user_id: i32, client: Arc<RwLock<Client>>) -> R
         .await
         .unwrap();
 
-    let messages: Vec<Post> = rows
+    let post_list: Vec<Post> = rows
         .iter()
         .map(|x| {
             Post { user_id: x.get("user_id"), body: x.get("body") }
@@ -37,7 +37,7 @@ pub async fn get_message_by_user(user_id: i32, client: Arc<RwLock<Client>>) -> R
         .collect();
 
     let post = PostList {
-        messages
+        post_list
     };
     Ok(warp::reply::json(&post))
 }
@@ -50,7 +50,7 @@ pub async fn get_messages(client: Arc<RwLock<Client>>) -> Result<impl warp::Repl
         .await
         .unwrap();
 
-    let messages: Vec<Post> = rows
+    let post_list: Vec<Post> = rows
         .iter()
         .map(|x| {
             Post { user_id: x.get("user_id"), body: x.get("body") }
@@ -58,7 +58,7 @@ pub async fn get_messages(client: Arc<RwLock<Client>>) -> Result<impl warp::Repl
         .collect();
 
     let post = PostList {
-        messages
+        post_list
     };
     Ok(warp::reply::json(&post))
 }

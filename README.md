@@ -22,6 +22,7 @@ $ createdb projekt-db
 #### /api/post
  - Post: 1x **Post**
  - Effect: Adds a post to the db
+ - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 ### Types
 ```
 Post {

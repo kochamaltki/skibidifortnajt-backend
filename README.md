@@ -2,13 +2,13 @@
 ## Docs
 ### Acces points
 #### /api/get/posts/by-user/{id}
- Get: multiple **Message**
- Note: Only from user {id}
+ - Get: multiple **Message**
+ - Note: Only from user {id}
 #### /api/get/posts/all
- Get: multiple **Message**
+ - Get: multiple **Message**
 #### /api/post
- Post: 1x **Message**
- Effect: Adds a message to the db
+ - Post: 1x **Message**
+ - Effect: Adds a message to the db
 ### Types
 ```
 Message {

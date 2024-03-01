@@ -11,7 +11,7 @@ $ systemctl enable --now postgresql.service
 $ su postgres
 [postgres]$ createuser --interactive // important to name the user dr
 [postgres]$ exit
-$ createdb projekt-db
+$ createdb projekt-db -O dr
 ```
 ### Acces points
 #### /api/get/posts/by-user/{id}

@@ -8,7 +8,7 @@
  - Note: Only from user {id}
 #### /api/get/posts/all
  - Get: list of **Post**
-#### /api/post
+#### /api/post/add-message
  - Post: 1x **Post**
  - Effect: Adds a post to the db
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'

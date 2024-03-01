@@ -1,18 +1,7 @@
 # Backend
 ## Docs
 ### Install
- - Install postgresql on your system
-```
-# passwd postgres
-$ su postgres
-[postgres]$ initdb -D /var/lib/postgres/data
-[postgres]$ exit
-$ systemctl enable --now postgresql.service
-$ su postgres
-[postgres]$ createuser --interactive // important to name the user dr
-[postgres]$ exit
-$ createdb projekt-db -O dr
-```
+ - Install sqlite on your system
 ### Acces points
 #### /api/get/posts/by-user/{id}
  - Get: list of **Post**

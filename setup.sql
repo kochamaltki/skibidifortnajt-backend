@@ -1,7 +1,7 @@
 DROP TABLE IF EXISTS posts;
 
 CREATE TABLE posts(
-	user_id SERIAL NOT NULL,
+	user_id INTEGER NOT NULL,
 	body VARCHAR(2048) NOT NULL
 );
 

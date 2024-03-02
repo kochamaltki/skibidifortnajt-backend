@@ -1,3 +1,5 @@
+use std::time::{self, SystemTime};
+
 use serde::{Deserialize, Serialize};
 use sqlite::State;
 use warp::Filter;
@@ -6,7 +8,9 @@ use warp::Filter;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Post {
-    pub user_id: i32,
+    pub post_id: i64,
+    pub user_id: i64,
+    pub date: i64,
     pub body: String,
 }
 
@@ -16,20 +20,22 @@ pub struct PostList {
 }
 
 pub struct User {
-    pub id: i32,
+    pub id: i64,
     pub name: String
 }
 
-pub async fn get_message_by_user(user_id: i32) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn get_message_by_user(user_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = sqlite::open("projekt-db").unwrap();
     let query = "SELECT * FROM posts WHERE user_id = ?";
     let mut statement = connection.prepare(query).unwrap();
-    statement.bind((1, user_id as i64)).unwrap();
+    statement.bind((1, user_id)).unwrap();
 
     let mut post_list: Vec<Post> = Vec::new();
     while let Ok(State::Row) = statement.next() {
         post_list.push(Post { 
-            user_id: statement.read::<i64, _>("user_id").unwrap() as i32, 
+            post_id: statement.read::<i64, _>("post_id").unwrap(),
+            user_id: statement.read::<i64, _>("user_id").unwrap(), 
+            date: statement.read::<i64, _>("date").unwrap(),
             body: statement.read::<String, _>("body").unwrap()
         });
     }
@@ -48,7 +54,9 @@ pub async fn get_messages() -> Result<impl warp::Reply, warp::Rejection> {
     let mut post_list: Vec<Post> = Vec::new();
     while let Ok(State::Row) = statement.next() {
         post_list.push(Post { 
-            user_id: statement.read::<i64, _>("user_id").unwrap() as i32, 
+            post_id: statement.read::<i64, _>("post_id").unwrap(),
+            user_id: statement.read::<i64, _>("user_id").unwrap(), 
+            date: statement.read::<i64, _>("date").unwrap(),
             body: statement.read::<String, _>("body").unwrap()
         });
     }
@@ -61,8 +69,24 @@ pub async fn get_messages() -> Result<impl warp::Reply, warp::Rejection> {
 
 pub async fn post_message(message: Post) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = sqlite::open("projekt-db").unwrap();
-    let query = format!("INSERT INTO posts VALUES ({}, '{}')", message.user_id, message.body);
+    let count_query = "SELECT COUNT(post_id) FROM posts";
+    let mut statement = connection.prepare(count_query).unwrap();
+
+    let count = if let Ok(State::Row) = statement.next() {
+        statement.read::<i64, _>(0).unwrap()
+    } else {
+        panic!("failed to get message count!");
+    };
+
+    let time_since_epoch: i64 = time::SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64;
+    let query = format!("INSERT INTO posts VALUES ({}, {}, {}, '{}')", 
+                        message.post_id,
+                        message.user_id,
+                        time_since_epoch,
+                        message.body);
     connection.execute(query).unwrap();
+    
+    println!("Added message with id: {} time: {}", count, time_since_epoch);
     
     Ok(warp::reply::with_status(
             format!("Post added for user with id: {}\n", message.user_id),
@@ -95,7 +119,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
     let post_message = warp::post()
         .and(warp::path("api"))
         .and(warp::path("post"))
-        .and(warp::path("add-message"))
+        .and(warp::path("add-post"))
         .and(warp::path::end())
         .and(post_json())
         .and_then(post_message);

@@ -1,8 +1,10 @@
 #!/bin/bash
 
-curl --location --request POST 'localhost:8000/api/post/delete-user' \
+path="$1/api/post/delete-user"
+
+curl --location --request POST "$path" \
 --header 'Content-Type: application/json' \
 --header 'Content-Type: text/plain' \
 --data-raw '{
-	"user_id": 0
+        "user_id": '$2',
 }'

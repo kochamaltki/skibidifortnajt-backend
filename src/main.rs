@@ -119,29 +119,44 @@ pub async fn get_user_id(user_name: String) -> Result<impl warp::Reply, warp::Re
 }
 
 // TODO: Check if u are logged in as this user
-pub async fn post_post(message: PostCreateRequest) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn post_post(post: PostCreateRequest) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = sqlite::open("projekt-db").unwrap();
+    let user_check_query = format!("SELECT user_id FROM users WHERE user_id = {}",
+                                   post.user_id);
+    let mut user_check_statement = connection.prepare(user_check_query).unwrap();
+
+    if let Ok(State::Row) = user_check_statement.next() {
+    } else {
+        return Ok(warp::reply::with_status(
+                format!("There is no user with id {}\n", post.user_id),
+                warp::http::StatusCode::NOT_FOUND,
+        ));
+    };
+    
     let count_query = "SELECT COUNT(post_id) FROM posts";
     let mut statement = connection.prepare(count_query).unwrap();
 
     let count = if let Ok(State::Row) = statement.next() {
         statement.read::<i64, _>(0).unwrap()
     } else {
-        panic!("failed to get message count!");
+        panic!("failed to get post count!");
     };
 
     let time_since_epoch: i64 = time::SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64;
     let query = format!("INSERT INTO posts VALUES ({}, {}, {}, '{}')", 
                         count,
-                        message.user_id,
+                        post.user_id,
                         time_since_epoch,
-                        message.body);
+                        post.body);
     connection.execute(query).unwrap();
     
-    println!("Added message with id: {} time: {}", count, time_since_epoch);
+    println!("Added post with id {} for user id {} time since epoch {}", 
+             count, 
+             post.user_id,
+             time_since_epoch);
     
     Ok(warp::reply::with_status(
-            format!("Post added for user with id: {}\n", message.user_id),
+            format!("Post added for user with id {}\n", post.user_id),
             warp::http::StatusCode::CREATED,
     ))
 }
@@ -155,11 +170,13 @@ pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Reje
 
     if let Ok(State::Row) = statement.next() {
         if statement.read::<String, _>(0).unwrap() == request.passwd {
+            println!("User {} logged in", name);
             Ok(warp::reply::with_status(
                     "Login succesful!",
                     warp::http::StatusCode::OK,
             ))
         } else {
+            println!("User {} failed to log in", name);
             Ok(warp::reply::with_status(
                     "Password incorrect!",
                     warp::http::StatusCode::UNAUTHORIZED,
@@ -201,6 +218,7 @@ pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Re
                             request.passwd);
         connection.execute(signup_query).unwrap();
 
+        println!("User {} created with id {}", name, count);
         Ok(warp::reply::with_status(
                 "User created!",
                 warp::http::StatusCode::CREATED,
@@ -248,7 +266,7 @@ fn delete_json() -> impl Filter<Extract = (UserDeleteRequest,), Error = warp::Re
 }
 
 pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    let get_messages_by_user = warp::get()
+    let get_posts_by_user = warp::get()
         .and(warp::path("api"))
         .and(warp::path("get"))
         .and(warp::path("posts"))
@@ -257,7 +275,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path::end())
         .and_then(get_posts_by_user);
 
-    let get_messages = warp::get()
+    let get_posts = warp::get()
         .and(warp::path("api"))
         .and(warp::path("get"))
         .and(warp::path("posts"))
@@ -283,7 +301,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path::end())
         .and_then(get_user_id);
 
-    let post_message = warp::post()
+    let post_post = warp::post()
         .and(warp::path("api"))
         .and(warp::path("post"))
         .and(warp::path("add-post"))
@@ -315,9 +333,9 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(delete_json())
         .and_then(delete_user);
 
-    get_messages_by_user
-        .or(post_message)
-        .or(get_messages)
+    get_posts_by_user
+        .or(post_post)
+        .or(get_posts)
         .or(login)
         .or(signup)
         .or(get_user_name)

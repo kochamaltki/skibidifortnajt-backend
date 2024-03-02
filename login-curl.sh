@@ -1,9 +1,11 @@
 #!/bin/bash
 
-curl --location --request POST 'localhost:8000/api/post/login' \
+path="$1/api/post/login"
+
+curl --location --request POST "$path" \
 --header 'Content-Type: application/json' \
 --header 'Content-Type: text/plain' \
 --data-raw '{
-	"user_name": "dr",
-	"passwd": "1234"
+	"user_name": "'"$2"'",
+	"passwd": "'"$3"'"
 }'

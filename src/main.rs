@@ -1,10 +1,9 @@
 use std::time::{self, SystemTime};
-
 use serde::{Deserialize, Serialize};
 use sqlite::State;
 use warp::Filter;
-mod getToken;
-
+mod get_token;
+mod get_secret;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Post {
@@ -91,9 +90,9 @@ pub async fn get_posts() -> Result<impl warp::Reply, warp::Rejection> {
     Ok(warp::reply::json(&post))
 }
 
-pub async fn make_token(user_id: i32) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn make_token(user_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
     
-    let token = getToken::create_jwt(user_id);
+    let token = get_token::get_token(user_id);
 
 
     Ok(warp::reply::json(&token))
@@ -172,8 +171,6 @@ pub async fn post_post(post: PostCreateRequest) -> Result<impl warp::Reply, warp
 
 
 
-fn post_json() -> impl Filter<Extract = (Post,), Error = warp::Rejection> + Clone {
-=======
 // TODO: Return some form of authentication
 pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = sqlite::open("projekt-db").unwrap();

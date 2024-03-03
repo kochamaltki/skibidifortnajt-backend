@@ -1,11 +1,11 @@
 #!/bin/bash
 
-path="$1/api/post/add-post"
+path="$1/api/post/login"
 
 curl --location --request POST "$path" \
 --header 'Content-Type: application/json' \
 --header 'Content-Type: text/plain' \
 --data-raw '{
-        "user_id": '$2',
-        "body": "'"$3"'"
+	"user_name": "'"$2"'",
+	"passwd": "'"$3"'"
 }'

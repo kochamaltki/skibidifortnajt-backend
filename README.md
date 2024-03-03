@@ -3,8 +3,8 @@
 ### Install
  - Install sqlite on your system
 ### Running
- - Before the first deploy, run `./setup-db.sh`
- - Run `./deploy.sh` from the backend directory
+ - Before the first deploy, run `./setup-db.sh` and create a file `SECRET` in the root directory, with its content being a base64 secret
+ - Run `./deploy.sh` from the root directory
 ### Acces points
 #### /api/get/posts/by-user/{id}
  - Get: PostList

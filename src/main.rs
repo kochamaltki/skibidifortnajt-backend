@@ -117,7 +117,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(post_json())
         .and_then(post_message);
 
-    get_messages_by_user.or(post_message).or(get_messages)
+    get_messages_by_user.or(post_message).or(get_messages).or(make_token)
 }
 
 #[tokio::main]

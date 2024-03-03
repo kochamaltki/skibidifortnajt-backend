@@ -6,24 +6,23 @@ use crate::Serialize;
 use crate::Deserialize;
 
 const BEARER: &str = "Bearer ";
-const JWT_SECRET: &[u8] = b"secret";
+const JWT_SECRET: &[u8] = b"bajojajo";
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Claims {
-    sub: String,
+    uid: String,
     role: String,
     exp: usize,
 }
 
 
-pub fn create_jwt(uid: i32) -> String {
+pub fn create_jwt(user_id: i32) -> String {
     // let expiration = Utc::now()
     //     .checked_add_signed(chrono::Duration::seconds(60))
     //     .expect("valid timestamp")
     //     .timestamp();
-    println!("DZIALAKURWA");
     let claims = Claims {
-        sub: uid.to_string(),
+        uid: user_id.to_string(),
         role: "user".to_string(),
         exp: 69696969 as usize,
     };

@@ -2,6 +2,9 @@
 ## Docs
 ### Install
  - Install sqlite on your system
+### Running
+ - Before the first deploy, run `./setup-db.sh`
+ - Run `./deploy.sh` from the backend directory
 ### Acces points
 #### /api/get/posts/by-user/{id}
  - Get: PostList

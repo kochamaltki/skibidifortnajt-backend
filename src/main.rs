@@ -3,8 +3,8 @@ use std::time::{self, SystemTime};
 use serde::{Deserialize, Serialize};
 use sqlite::State;
 use warp::Filter;
+mod getToken;
 
-//test
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Post {
@@ -91,6 +91,15 @@ pub async fn get_posts() -> Result<impl warp::Reply, warp::Rejection> {
     Ok(warp::reply::json(&post))
 }
 
+pub async fn make_token(user_id: i32) -> Result<impl warp::Reply, warp::Rejection> {
+    
+    let token = getToken::create_jwt(user_id);
+
+
+    Ok(warp::reply::json(&token))
+}
+
+
 pub async fn get_user_name(user_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = sqlite::open("projekt-db").unwrap();
     let query = "SELECT user_name FROM users WHERE user_id = ?";
@@ -161,6 +170,10 @@ pub async fn post_post(post: PostCreateRequest) -> Result<impl warp::Reply, warp
     ))
 }
 
+
+
+fn post_json() -> impl Filter<Extract = (Post,), Error = warp::Rejection> + Clone {
+=======
 // TODO: Return some form of authentication
 pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = sqlite::open("projekt-db").unwrap();
@@ -301,6 +314,14 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path::end())
         .and_then(get_user_id);
 
+    let make_token = warp::get()
+        .and(warp::path("api"))
+        .and(warp::path("get"))
+        .and(warp::path("token"))
+        .and(warp::path::param())
+        .and(warp::path::end())
+        .and_then(make_token);
+
     let post_post = warp::post()
         .and(warp::path("api"))
         .and(warp::path("post"))
@@ -341,6 +362,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .or(get_user_name)
         .or(delete)
         .or(get_user_id)
+        .or(make_token)
 }
 
 #[tokio::main]

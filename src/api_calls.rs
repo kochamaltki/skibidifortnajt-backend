@@ -2,7 +2,8 @@ use serde::{Deserialize, Serialize};
 use sqlite::State;
 use warp::Filter;
 use std::time::SystemTime;
-use crate::get_token;
+use crate::get_token::get_token;
+use crate::verify_token;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Post {
@@ -32,12 +33,14 @@ pub struct SignupRequest {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct PostCreateRequest {
     pub user_id: i64,
-    pub body: String
+    pub body: String,
+    pub token: String
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct UserDeleteRequest {
-    pub user_id: i64
+    pub user_id: i64,
+    pub token: String
 }
 
 // pub struct User {
@@ -90,13 +93,7 @@ pub async fn get_posts() -> Result<impl warp::Reply, warp::Rejection> {
     Ok(warp::reply::json(&post))
 }
 
-pub async fn make_token(user_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
-    
-    let token = get_token::get_token(user_id);
 
-
-    Ok(warp::reply::json(&token))
-}
 
 
 pub async fn get_user_name(user_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
@@ -124,10 +121,19 @@ pub async fn get_user_id(user_name: String) -> Result<impl warp::Reply, warp::Re
         -1
     };
     Ok(warp::reply::json(&id))
-}
+}	
 
 // TODO: Check if u are logged in as this user
 pub async fn post_post(post: PostCreateRequest) -> Result<impl warp::Reply, warp::Rejection> {
+	match verify_token::verify_token(post.token) {
+		Ok(_) => {}
+		Err(_) => {
+			return Ok(warp::reply::with_status(
+            	    format!("Wrong token"),
+                	warp::http::StatusCode::UNAUTHORIZED,
+        	));
+		}
+	}
     let connection = sqlite::open("projekt-db").unwrap();
     let user_check_query = format!("SELECT user_id FROM users WHERE user_id = {}",
                                    post.user_id);
@@ -257,6 +263,11 @@ pub async fn delete_user(request: UserDeleteRequest) -> Result<impl warp::Reply,
                 warp::http::StatusCode::NOT_FOUND,
         ))
     }
+}
+
+pub async fn make_token(user_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
+	let token = get_token(user_id);
+	Ok(warp::reply::json(&token))
 }
 
 pub fn post_json() -> impl Filter<Extract = (PostCreateRequest,), Error = warp::Rejection> + Clone {

@@ -1,53 +1,9 @@
 use warp::Filter;
-mod get_token;
-mod get_secret;
-mod verify_token;
-mod api_calls;
+pub mod get_token;
+pub mod get_secret;
+pub mod verify_token;
+pub mod api_calls;
 use crate::api_calls::*;
-
-
-// #[derive(Debug, Deserialize, Serialize, Clone)]
-// pub struct Post {
-//     pub post_id: i64,
-//     pub user_id: i64,
-//     pub date: i64,
-//     pub body: String,
-// }
-
-// #[derive(Debug, Deserialize, Serialize, Clone)]
-// pub struct PostList {
-//     pub post_list: Vec<Post>
-// }
-
-// #[derive(Debug, Deserialize, Serialize, Clone)]
-// pub struct LoginRequest {
-//     pub user_name: String,
-//     pub passwd: String
-// }
-
-// #[derive(Debug, Deserialize, Serialize, Clone)]
-// pub struct SignupRequest {
-//     pub user_name: String,
-//     pub passwd: String
-// }
-
-// #[derive(Debug, Deserialize, Serialize, Clone)]
-// pub struct PostCreateRequest {
-//     pub user_id: i64,
-//     pub body: String
-// }
-
-// #[derive(Debug, Deserialize, Serialize, Clone)]
-// pub struct UserDeleteRequest {
-//     pub user_id: i64
-// }
-
-// pub struct User {
-//     pub user_id: i64,
-//     pub user_name: String,
-//     pub passwd: String
-// }
-
 
 
 pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
@@ -59,6 +15,14 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path::param())
         .and(warp::path::end())
         .and_then(get_posts_by_user);
+
+    let make_token = warp::get()
+        .and(warp::path("api"))
+        .and(warp::path("get"))
+        .and(warp::path("token"))
+        .and(warp::path::param())
+        .and(warp::path::end())
+        .and_then(make_token);
 
     let get_posts = warp::get()
         .and(warp::path("api"))
@@ -86,14 +50,6 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path::end())
         .and_then(get_user_id);
 
-    let make_token = warp::get()
-        .and(warp::path("api"))
-        .and(warp::path("get"))
-        .and(warp::path("token"))
-        .and(warp::path::param())
-        .and(warp::path::end())
-        .and_then(make_token);
-
     let post_post = warp::post()
         .and(warp::path("api"))
         .and(warp::path("post"))
@@ -103,7 +59,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and_then(post_post);
 
     let login = warp::post()
-        .and(warp::path("api"))
+        .and(warp::path("api")) 
         .and(warp::path("post"))
         .and(warp::path("login"))
         .and(warp::path::end())

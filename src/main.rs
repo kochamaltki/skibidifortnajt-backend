@@ -16,14 +16,6 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path::end())
         .and_then(get_posts_by_user);
 
-    let make_token = warp::get()
-        .and(warp::path("api"))
-        .and(warp::path("get"))
-        .and(warp::path("token"))
-        .and(warp::path::param())
-        .and(warp::path::end())
-        .and_then(make_token);
-
     let get_posts = warp::get()
         .and(warp::path("api"))
         .and(warp::path("get"))
@@ -90,7 +82,6 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .or(get_user_name)
         .or(delete)
         .or(get_user_id)
-        .or(make_token)
 }
 
 #[tokio::main]

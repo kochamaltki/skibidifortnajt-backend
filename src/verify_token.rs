@@ -4,9 +4,9 @@ use crate::get_secret::get_secret;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
-    uid: i64,
-    role: String,
-    exp: u64,
+   pub uid: i64,
+   pub role: String,
+   pub exp: u64,
 }
 
 pub fn verify_token(token: String) -> Result<TokenData<Claims>, errors::Error>{

@@ -5,6 +5,7 @@ use std::time::SystemTime;
 use crate::get_token::get_token;
 use crate::verify_token;
 
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Post {
     pub post_id: i64,
@@ -223,21 +224,26 @@ pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Re
     let mut statement = connection.prepare(query).unwrap();
 
     if let Ok(State::Row) = statement.next() {
+
+        let resp = "User already exists!".to_string();
         Ok(warp::reply::with_status(
-                "User already exists!",
+                warp::reply::json(&resp),
                 warp::http::StatusCode::CONFLICT,
         ))
+
     } else {
+
         let signup_query = format!("INSERT INTO users VALUES ({}, '{}', '{}')", 
                             count,
                             name,
                             request.passwd);
         connection.execute(signup_query).unwrap();
-
         println!("User {} created with id {}", name, count);
+        let token = warp::reply::json(&get_token(count));
+        
         Ok(warp::reply::with_status(
-                "User created!",
-                warp::http::StatusCode::CREATED,
+                token, 
+                warp::http::StatusCode::CREATED
         ))
     }
 }
@@ -265,10 +271,7 @@ pub async fn delete_user(request: UserDeleteRequest) -> Result<impl warp::Reply,
     }
 }
 
-pub async fn make_token(user_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
-	let token = get_token(user_id);
-	Ok(warp::reply::json(&token))
-}
+
 
 pub fn post_json() -> impl Filter<Extract = (PostCreateRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())

@@ -188,7 +188,7 @@ pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Reje
     if let Ok(State::Row) = statement.next() {
         if statement.read::<String, _>(0).unwrap() == request.passwd{
             println!("User {} logged in", name);
-            let user_id= statement.read::<i64, _>(0).unwrap();
+            let user_id = statement.read::<i64, _>(0).unwrap();
             Ok(warp::reply::with_status(
                     warp::reply::json(&get_token(user_id)),
                     warp::http::StatusCode::OK,

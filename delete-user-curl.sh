@@ -7,4 +7,5 @@ curl --location --request POST "$path" \
 --header 'Content-Type: text/plain' \
 --data-raw '{
         "user_id": '$2',
+        "token": "'"$3"'"
 }'

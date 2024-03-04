@@ -22,7 +22,7 @@ pub struct PostList {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct LoginRequest {
     pub user_name: String,
-    pub passwd: String
+    pub passwd: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -43,12 +43,6 @@ pub struct UserDeleteRequest {
     pub user_id: i64,
     pub token: String
 }
-
-// pub struct User {
-//     pub user_id: i64,
-//     pub user_name: String,
-//     pub passwd: String
-// }
 
 
 pub async fn get_posts_by_user(user_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
@@ -124,10 +118,16 @@ pub async fn get_user_id(user_name: String) -> Result<impl warp::Reply, warp::Re
     Ok(warp::reply::json(&id))
 }	
 
-// TODO: Check if u are logged in as this user
 pub async fn post_post(post: PostCreateRequest) -> Result<impl warp::Reply, warp::Rejection> {
 	match verify_token::verify_token(post.token) {
-		Ok(_) => {}
+		Ok(val) => {
+            if val.claims.uid != post.user_id {
+                return Ok(warp::reply::with_status(
+                        format!("Wrong token"),
+                        warp::http::StatusCode::UNAUTHORIZED,
+                ));
+            }
+        }
 		Err(_) => {
 			return Ok(warp::reply::with_status(
             	    format!("Wrong token"),
@@ -178,30 +178,33 @@ pub async fn post_post(post: PostCreateRequest) -> Result<impl warp::Reply, warp
 
 
 
-// TODO: Return some form of authentication
 pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = sqlite::open("projekt-db").unwrap();
     let name = request.user_name;
-    let query = format!("SELECT passwd FROM users WHERE user_name = '{}'", name);
+
+    let query = format!("SELECT passwd, user_id FROM users WHERE user_name = '{}'", name);
     let mut statement = connection.prepare(query).unwrap();
 
     if let Ok(State::Row) = statement.next() {
-        if statement.read::<String, _>(0).unwrap() == request.passwd {
+        if statement.read::<String, _>(0).unwrap() == request.passwd{
             println!("User {} logged in", name);
+            let user_id= statement.read::<i64, _>(0).unwrap();
             Ok(warp::reply::with_status(
-                    "Login succesful!",
+                    warp::reply::json(&get_token(user_id)),
                     warp::http::StatusCode::OK,
             ))
         } else {
             println!("User {} failed to log in", name);
+            let _r="Password incorrect!".to_string();
             Ok(warp::reply::with_status(
-                    "Password incorrect!",
+                    warp::reply::json(&_r),
                     warp::http::StatusCode::UNAUTHORIZED,
             ))
         }
     } else {
+        let _r="User does not exist!".to_string();
         Ok(warp::reply::with_status(
-                "User does not exist!",
+                warp::reply::json(&_r),
                 warp::http::StatusCode::NOT_FOUND,
         ))
     }
@@ -225,9 +228,9 @@ pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Re
 
     if let Ok(State::Row) = statement.next() {
 
-        let resp = "User already exists!".to_string();
+        let _r = "User already exists!".to_string();
         Ok(warp::reply::with_status(
-                warp::reply::json(&resp),
+                warp::reply::json(&_r),
                 warp::http::StatusCode::CONFLICT,
         ))
 
@@ -248,8 +251,23 @@ pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Re
     }
 }
 
-// TODO: Check if u are logged in as this user
 pub async fn delete_user(request: UserDeleteRequest) -> Result<impl warp::Reply, warp::Rejection> {
+    match verify_token::verify_token(request.token) {
+        Ok(val) => {
+            if val.claims.uid != request.user_id {
+                return Ok(warp::reply::with_status(
+                        format!("Wrong token"),
+                        warp::http::StatusCode::UNAUTHORIZED,
+                ));
+            }
+        }
+        Err(_) => {
+            return Ok(warp::reply::with_status(
+                    format!("Wrong token"),
+                    warp::http::StatusCode::UNAUTHORIZED,
+            ));
+        }
+    }
     let connection = sqlite::open("projekt-db").unwrap();
     let id = request.user_id;
     let query = format!("SELECT passwd FROM users WHERE user_id = {}", id);
@@ -260,12 +278,12 @@ pub async fn delete_user(request: UserDeleteRequest) -> Result<impl warp::Reply,
         connection.execute(delete_query).unwrap();
 
         Ok(warp::reply::with_status(
-                "Delete succesful!",
+                format!("Delete succesful!"),
                 warp::http::StatusCode::OK,
         ))
     } else {
         Ok(warp::reply::with_status(
-                "User does not exist!",
+                format!("User does not exist!"),
                 warp::http::StatusCode::NOT_FOUND,
         ))
     }

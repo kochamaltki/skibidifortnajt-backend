@@ -178,30 +178,33 @@ pub async fn post_post(post: PostCreateRequest) -> Result<impl warp::Reply, warp
 
 
 
-// TODO: Return some form of authentication
 pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = sqlite::open("projekt-db").unwrap();
     let name = request.user_name;
-    let query = format!("SELECT passwd FROM users WHERE user_name = '{}'", name);
+
+    let query = format!("SELECT passwd, user_id FROM users WHERE user_name = '{}'", name);
     let mut statement = connection.prepare(query).unwrap();
 
     if let Ok(State::Row) = statement.next() {
-        if statement.read::<String, _>(0).unwrap() == request.passwd {
+        if statement.read::<String, _>(0).unwrap() == request.passwd{
             println!("User {} logged in", name);
+            let user_id= statement.read::<i64, _>(0).unwrap();
             Ok(warp::reply::with_status(
-                    "Login succesful!",
+                    warp::reply::json(&get_token(user_id)),
                     warp::http::StatusCode::OK,
             ))
         } else {
             println!("User {} failed to log in", name);
+            let _r="Password incorrect!".to_string();
             Ok(warp::reply::with_status(
-                    "Password incorrect!",
+                    warp::reply::json(&_r),
                     warp::http::StatusCode::UNAUTHORIZED,
             ))
         }
     } else {
+        let _r="User does not exist!".to_string();
         Ok(warp::reply::with_status(
-                "User does not exist!",
+                warp::reply::json(&_r),
                 warp::http::StatusCode::NOT_FOUND,
         ))
     }
@@ -225,9 +228,9 @@ pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Re
 
     if let Ok(State::Row) = statement.next() {
 
-        let resp = "User already exists!".to_string();
+        let _r = "User already exists!".to_string();
         Ok(warp::reply::with_status(
-                warp::reply::json(&resp),
+                warp::reply::json(&_r),
                 warp::http::StatusCode::CONFLICT,
         ))
 
@@ -248,7 +251,6 @@ pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Re
     }
 }
 
-// TODO: Check if u are logged in as this user
 pub async fn delete_user(request: UserDeleteRequest) -> Result<impl warp::Reply, warp::Rejection> {
     match verify_token::verify_token(request.token) {
         Ok(val) => {

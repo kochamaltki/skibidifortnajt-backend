@@ -93,7 +93,7 @@ pub async fn get_posts() -> Result<impl warp::Reply, warp::Rejection> {
 
 pub async fn get_user_name(user_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = sqlite::open("projekt-db").unwrap();
-    let query = "SELECT user_name FROM users WHERE user_id = ?";
+    let query = "SELECT user_name FROM users WHERE user_id = ?1";
     let mut statement = connection.prepare(query).unwrap();
     statement.bind((1, user_id)).unwrap();
 
@@ -107,8 +107,9 @@ pub async fn get_user_name(user_id: i64) -> Result<impl warp::Reply, warp::Rejec
 
 pub async fn get_user_id(user_name: String) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = sqlite::open("projekt-db").unwrap();
-    let query = format!("SELECT user_id FROM users WHERE user_name = '{}'", user_name);
+    let query = "SELECT user_id FROM users WHERE user_name = ?";  
     let mut statement = connection.prepare(query).unwrap();
+    statement.bind((1, user_name.as_str())).unwrap();
 
     let id = if let Ok(State::Row) = statement.next() {
         statement.read::<i64, _>(0).unwrap()
@@ -136,9 +137,9 @@ pub async fn post_post(post: PostCreateRequest) -> Result<impl warp::Reply, warp
 		}
 	}
     let connection = sqlite::open("projekt-db").unwrap();
-    let user_check_query = format!("SELECT user_id FROM users WHERE user_id = {}",
-                                   post.user_id);
+    let user_check_query = "SELECT user_id FROM users WHERE user_id = ?"; 
     let mut user_check_statement = connection.prepare(user_check_query).unwrap();
+    user_check_statement.bind((1, post.user_id)).unwrap();
 
     if let Ok(State::Row) = user_check_statement.next() {
     } else {
@@ -158,12 +159,13 @@ pub async fn post_post(post: PostCreateRequest) -> Result<impl warp::Reply, warp
     };
 
     let time_since_epoch: i64 = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64;
-    let query = format!("INSERT INTO posts VALUES ({}, {}, {}, '{}')", 
-                        count,
-                        post.user_id,
-                        time_since_epoch,
-                        post.body);
-    connection.execute(query).unwrap();
+    let query = "INSERT INTO posts VALUES (?, ?, ?, ?)";
+    let mut statement = connection.prepare(query).unwrap();
+    statement.bind(&[(1, count.to_string()), (2, post.user_id), (3, time_since_epoch), (4, post.body)][..]).unwrap();
+    // statement.bind((2, post.user_id)).unwrap();
+    // statement.bind((3, time_since_epoch)).unwrap();
+    // statement.bind((4, post.body.as_str())).unwrap();
+
     
     println!("Added post with id {} for user id {} time since epoch {}", 
              count, 
@@ -182,8 +184,9 @@ pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Reje
     let connection = sqlite::open("projekt-db").unwrap();
     let name = request.user_name;
 
-    let query = format!("SELECT passwd, user_id FROM users WHERE user_name = '{}'", name);
+    let query = "SELECT passwd, user_id FROM users WHERE user_name = ?";
     let mut statement = connection.prepare(query).unwrap();
+    statement.bind((1, name.as_str())).unwrap();
 
     if let Ok(State::Row) = statement.next() {
         if statement.read::<String, _>(0).unwrap() == request.passwd{
@@ -215,16 +218,17 @@ pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Re
     
     let count_query = "SELECT COUNT(user_id) FROM users";
     let mut count_statement = connection.prepare(count_query).unwrap();
-
-    let count = if let Ok(State::Row) = count_statement.next() {
-        count_statement.read::<i64, _>(0).unwrap()
+    let count;
+    if let Ok(State::Row) = count_statement.next() {
+        count = count_statement.read::<i64, _>(0).unwrap()
     } else {
         panic!("failed to get user count!");
     };
     
     let name = request.user_name;
-    let query = format!("SELECT user_name FROM users WHERE user_name = '{}'", name);
+    let query = "SELECT user_name FROM users WHERE user_name = ?"; 
     let mut statement = connection.prepare(query).unwrap();
+    statement.bind((1, name.as_str())).unwrap();
 
     if let Ok(State::Row) = statement.next() {
 
@@ -236,11 +240,12 @@ pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Re
 
     } else {
 
-        let signup_query = format!("INSERT INTO users VALUES ({}, '{}', '{}')", 
-                            count,
-                            name,
-                            request.passwd);
-        connection.execute(signup_query).unwrap();
+        let signup_query = "INSERT INTO users VALUES (?, ?, ?)";
+        let mut signup_statement = connection.prepare(signup_query).unwrap();
+        signup_statement.bind((1, count)).unwrap();
+        signup_statement.bind((2, name.as_str())).unwrap();
+        signup_statement.bind((3, request.passwd.as_str())).unwrap();
+
         println!("User {} created with id {}", name, count);
         let token = warp::reply::json(&get_token(count));
         
@@ -270,12 +275,14 @@ pub async fn delete_user(request: UserDeleteRequest) -> Result<impl warp::Reply,
     }
     let connection = sqlite::open("projekt-db").unwrap();
     let id = request.user_id;
-    let query = format!("SELECT passwd FROM users WHERE user_id = {}", id);
+    let query = "SELECT passwd FROM users WHERE user_id = ?"; // sqli
     let mut statement = connection.prepare(query).unwrap();
+    statement.bind((1, id)).unwrap();
 
     if let Ok(State::Row) = statement.next() {
-        let delete_query = format!("DELETE FROM users WHERE user_id = {}", id);
-        connection.execute(delete_query).unwrap();
+        let delete_query = "DELETE FROM users WHERE user_id = ?"; // sqli
+        let mut delete_statement = connection.prepare(delete_query).unwrap();
+        delete_statement.bind((1, id)).unwrap();
 
         Ok(warp::reply::with_status(
                 format!("Delete succesful!"),

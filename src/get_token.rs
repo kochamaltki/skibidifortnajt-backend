@@ -30,7 +30,7 @@ pub fn get_token(user_id: i64) -> String {
         role: "user".to_string(),
         exp: expiration,
     };
-    let header = Header::new(Algorithm::HS512);
+    let header = Header::new(Algorithm::HS256);
     let tkn = encode(&header, &claims, &EncodingKey::from_base64_secret(jwt_secret).expect("Nie udalo sie zdekodowac sekretu"));
     tkn.expect("REASON")
 }

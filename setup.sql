@@ -11,6 +11,8 @@ CREATE TABLE posts(
 CREATE TABLE users(
 	user_id INTEGER PRIMARY KEY NOT NULL,
 	user_name VARCHAR(64) UNIQUE NOT NULL,
-	passwd VARCHAR(128) NOT NULL
+	passwd VARCHAR(128) NOT NULL,
+	is_admin INTEGER NOT NULL
 );
 
+INSERT INTO users VALUES (0, 'root', 'testy', 1);

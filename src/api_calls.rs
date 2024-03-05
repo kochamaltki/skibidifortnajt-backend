@@ -43,6 +43,12 @@ pub struct UserDeleteRequest {
     pub token: String
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct UserUpgradeRequest {
+    pub user_id: i64,
+    pub token: String
+}
+
 
 pub async fn get_posts_by_user(user_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = sqlite::open("projekt-db").unwrap();
@@ -202,16 +208,17 @@ pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Reje
     let connection = sqlite::open("projekt-db").unwrap();
     let name = request.user_name;
 
-    let query = "SELECT passwd, user_id FROM users WHERE user_name = ?";
+    let query = "SELECT passwd, user_id, is_admin FROM users WHERE user_name = ?";
     let mut statement = connection.prepare(query).unwrap();
     statement.bind((1, name.as_str())).unwrap();
 
     if let Ok(State::Row) = statement.next() {
         if statement.read::<String, _>(0).unwrap() == request.passwd{
             println!("User {} logged in", name);
-            let user_id = statement.read::<i64, _>(0).unwrap();
+            let user_id = statement.read::<i64, _>(1).unwrap();
+            let is_admin = statement.read::<i64, _>(2).unwrap();
             Ok(warp::reply::with_status(
-                    warp::reply::json(&get_token(user_id)),
+                    warp::reply::json(&get_token(user_id, is_admin)),
                     warp::http::StatusCode::OK,
             ))
         } else {
@@ -258,7 +265,7 @@ pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Re
 
     } else {
 
-        let signup_query = "INSERT INTO users VALUES (:user_id, :user_name, :passwd)";
+        let signup_query = "INSERT INTO users VALUES (:user_id, :user_name, :passwd, 0)";
         let mut signup_statement = connection.prepare(signup_query).unwrap();
         signup_statement.bind::<&[(_, Value)]>(&[
             (":user_id", count.into()), 
@@ -268,7 +275,7 @@ pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Re
         signup_statement.next().unwrap();
 
         println!("User {} created with id {}", name, count);
-        let token = warp::reply::json(&get_token(count));
+        let token = warp::reply::json(&get_token(count, 0));
         
         Ok(warp::reply::with_status(
                 token, 
@@ -312,6 +319,49 @@ pub async fn delete_user(request: UserDeleteRequest) -> Result<impl warp::Reply,
     }
 }
 
+pub async fn upgrade_user(request: UserUpgradeRequest) -> Result<impl warp::Reply, warp::Rejection> {
+    let token: TokenData<Claims>;
+    match verify_token::verify_token(request.token) {
+        Ok(val) => {token = val}
+        Err(_) => {
+            return Ok(warp::reply::with_status(
+                    format!("Wrong token"),
+                    warp::http::StatusCode::UNAUTHORIZED,
+            ));
+        }
+    }
+
+    if token.claims.is_admin != 1 {
+        return Ok(warp::reply::with_status(
+                format!("Not admin"),
+                warp::http::StatusCode::UNAUTHORIZED,
+        ));
+    }
+
+    let connection = sqlite::open("projekt-db").unwrap();
+    let id = request.user_id;
+    let query = "SELECT user_name FROM users WHERE user_id = ?";
+    let mut statement = connection.prepare(query).unwrap();
+    statement.bind((1, id)).unwrap();
+
+    if let Ok(State::Row) = statement.next() {
+        let upgrade_query = "UPDATE users SET is_admin=1 WHERE user_id = ?";
+        let mut upgrade_statement = connection.prepare(upgrade_query).unwrap();
+        upgrade_statement.bind((1, id)).unwrap();
+        upgrade_statement.next().unwrap();
+        println!("User upgraded with id: {}", request.user_id);
+        Ok(warp::reply::with_status(
+                format!("Upgrade succesful!"),
+                warp::http::StatusCode::OK,
+        ))
+    } else {
+        Ok(warp::reply::with_status(
+                format!("User does not exist!"),
+                warp::http::StatusCode::NOT_FOUND,
+        ))
+    }
+}
+
 pub fn post_json() -> impl Filter<Extract = (PostCreateRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
@@ -325,6 +375,10 @@ pub fn signup_json() -> impl Filter<Extract = (SignupRequest,), Error = warp::Re
 }
 
 pub fn delete_json() -> impl Filter<Extract = (UserDeleteRequest,), Error = warp::Rejection> + Clone {
+    warp::body::content_length_limit(1024 * 16).and(warp::body::json())
+}
+
+pub fn upgrade_json() -> impl Filter<Extract = (UserUpgradeRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
 

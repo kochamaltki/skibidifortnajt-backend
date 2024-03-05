@@ -167,6 +167,7 @@ pub async fn post_post(post: PostCreateRequest) -> Result<impl warp::Reply, warp
                    (":date", time_since_epoch.into()), 
                    (":body", post.body.into())
     ][..]).unwrap();
+    statement.next().unwrap();
     
     println!("Added post with id {} for user id {} time since epoch {}", 
              count, 
@@ -248,6 +249,7 @@ pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Re
             (":user_name", name.clone().into()), 
             (":passwd", request.passwd.into()), 
         ][..]).unwrap();
+        signup_statement.next().unwrap();
 
         println!("User {} created with id {}", name, count);
         let token = warp::reply::json(&get_token(count));

@@ -24,11 +24,11 @@
 #### /api/post/login
  - Post: LoginRequest
  - Effect: Login ig
- - Return: "Login succesful!:200" / "Password incorrect!:401" / "User does not exist!:404"
+ - Return: User token
 #### /api/post/signup
  - Post: SignupRequest
  - Effect: Creates a user with given name and password
- - Return: "User Created!:201" / "User already exists!:409"
+ - Return: User Token
 #### /api/post/delete-user
  - Post : UserDeleteRequest
  - Effect: Deletes a user
@@ -63,10 +63,12 @@ SignupRequest {
 PostCreateRequest {
     user_id: i64
     body: string (max 2048 chars)
+    token: string
 }
 ```
 ```
 UserDeleteRequest {
     user_id: i64
+    token: string
 }
 ```

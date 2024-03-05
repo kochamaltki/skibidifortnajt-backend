@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use sqlite::State;
+use sqlite::{State, Value};
 use warp::Filter;
 use std::time::SystemTime;
 use crate::get_token::get_token;
@@ -159,13 +159,14 @@ pub async fn post_post(post: PostCreateRequest) -> Result<impl warp::Reply, warp
     };
 
     let time_since_epoch: i64 = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64;
-    let query = "INSERT INTO posts VALUES (?, ?, ?, ?)";
+    let query = "INSERT INTO posts VALUES (:post_id, :user_id, :date, :body)";
     let mut statement = connection.prepare(query).unwrap();
-    statement.bind(&[(1, count.to_string()), (2, post.user_id), (3, time_since_epoch), (4, post.body)][..]).unwrap();
-    // statement.bind((2, post.user_id)).unwrap();
-    // statement.bind((3, time_since_epoch)).unwrap();
-    // statement.bind((4, post.body.as_str())).unwrap();
-
+    statement.bind::<&[(_, Value)]>(&[
+                   (":post_id", count.into()), 
+                   (":user_id", post.user_id.into()), 
+                   (":date", time_since_epoch.into()), 
+                   (":body", post.body.into())
+    ][..]).unwrap();
     
     println!("Added post with id {} for user id {} time since epoch {}", 
              count, 
@@ -240,11 +241,13 @@ pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Re
 
     } else {
 
-        let signup_query = "INSERT INTO users VALUES (?, ?, ?)";
+        let signup_query = "INSERT INTO users VALUES (:user_id, :user_name, :passwd)";
         let mut signup_statement = connection.prepare(signup_query).unwrap();
-        signup_statement.bind((1, count)).unwrap();
-        signup_statement.bind((2, name.as_str())).unwrap();
-        signup_statement.bind((3, request.passwd.as_str())).unwrap();
+        signup_statement.bind::<&[(_, Value)]>(&[
+            (":user_id", count.into()), 
+            (":user_name", name.clone().into()), 
+            (":passwd", request.passwd.into()), 
+        ][..]).unwrap();
 
         println!("User {} created with id {}", name, count);
         let token = warp::reply::json(&get_token(count));

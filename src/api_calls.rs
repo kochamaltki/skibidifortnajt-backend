@@ -1,9 +1,10 @@
+use jsonwebtoken::TokenData;
 use serde::{Deserialize, Serialize};
 use sqlite::{State, Value};
 use warp::Filter;
 use std::time::SystemTime;
 use crate::get_token::get_token;
-use crate::verify_token;
+use crate::verify_token::{self, Claims};
 
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -33,14 +34,12 @@ pub struct SignupRequest {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct PostCreateRequest {
-    pub user_id: i64,
     pub body: String,
     pub token: String
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct UserDeleteRequest {
-    pub user_id: i64,
     pub token: String
 }
 
@@ -120,31 +119,26 @@ pub async fn get_user_id(user_name: String) -> Result<impl warp::Reply, warp::Re
 }	
 
 pub async fn post_post(post: PostCreateRequest) -> Result<impl warp::Reply, warp::Rejection> {
-	match verify_token::verify_token(post.token) {
-		Ok(val) => {
-            if val.claims.uid != post.user_id {
-                return Ok(warp::reply::with_status(
-                        format!("Wrong token"),
-                        warp::http::StatusCode::UNAUTHORIZED,
-                ));
-            }
-        }
-		Err(_) => {
+    let token: TokenData<Claims>;
+    match verify_token::verify_token(post.token) {
+		Ok(val) => {token = val}
+        Err(_) => {
 			return Ok(warp::reply::with_status(
             	    format!("Wrong token"),
                 	warp::http::StatusCode::UNAUTHORIZED,
         	));
 		}
 	}
+    let id = token.claims.uid;
     let connection = sqlite::open("projekt-db").unwrap();
     let user_check_query = "SELECT user_id FROM users WHERE user_id = ?"; 
     let mut user_check_statement = connection.prepare(user_check_query).unwrap();
-    user_check_statement.bind((1, post.user_id)).unwrap();
+    user_check_statement.bind((1, id)).unwrap();
 
     if let Ok(State::Row) = user_check_statement.next() {
     } else {
         return Ok(warp::reply::with_status(
-                format!("There is no user with id {}\n", post.user_id),
+                format!("There is no user with id {}\n", id),
                 warp::http::StatusCode::NOT_FOUND,
         ));
     };
@@ -163,7 +157,7 @@ pub async fn post_post(post: PostCreateRequest) -> Result<impl warp::Reply, warp
     let mut statement = connection.prepare(query).unwrap();
     statement.bind::<&[(_, Value)]>(&[
                    (":post_id", count.into()), 
-                   (":user_id", post.user_id.into()), 
+                   (":user_id", id.into()), 
                    (":date", time_since_epoch.into()), 
                    (":body", post.body.into())
     ][..]).unwrap();
@@ -171,11 +165,11 @@ pub async fn post_post(post: PostCreateRequest) -> Result<impl warp::Reply, warp
     
     println!("Added post with id {} for user id {} time since epoch {}", 
              count, 
-             post.user_id,
+             id,
              time_since_epoch);
     
     Ok(warp::reply::with_status(
-            format!("Post added for user with id {}\n", post.user_id),
+            format!("Post added for user with id {}\n", id),
             warp::http::StatusCode::CREATED,
     ))
 }
@@ -262,15 +256,9 @@ pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Re
 }
 
 pub async fn delete_user(request: UserDeleteRequest) -> Result<impl warp::Reply, warp::Rejection> {
+    let token: TokenData<Claims>;
     match verify_token::verify_token(request.token) {
-        Ok(val) => {
-            if val.claims.uid != request.user_id {
-                return Ok(warp::reply::with_status(
-                        format!("Wrong token"),
-                        warp::http::StatusCode::UNAUTHORIZED,
-                ));
-            }
-        }
+        Ok(val) => {token = val}
         Err(_) => {
             return Ok(warp::reply::with_status(
                     format!("Wrong token"),
@@ -279,7 +267,7 @@ pub async fn delete_user(request: UserDeleteRequest) -> Result<impl warp::Reply,
         }
     }
     let connection = sqlite::open("projekt-db").unwrap();
-    let id = request.user_id;
+    let id = token.claims.uid;
     let query = "SELECT passwd FROM users WHERE user_id = ?"; // sqli
     let mut statement = connection.prepare(query).unwrap();
     statement.bind((1, id)).unwrap();

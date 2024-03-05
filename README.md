@@ -9,6 +9,9 @@
 #### /api/get/posts/by-user/{id}
  - Get: PostList
  - Note: Only from user {id}
+#### /api/get/posts/by-id/{id}
+ - Get: Post
+ - Note: Posy with id {id}
 #### /api/get/posts/all
  - Get: PostList
 #### /api/get/user/name/{id}

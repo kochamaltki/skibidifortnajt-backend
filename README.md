@@ -61,14 +61,12 @@ SignupRequest {
 ```
 ```
 PostCreateRequest {
-    user_id: i64
     body: string (max 2048 chars)
     token: string
 }
 ```
 ```
 UserDeleteRequest {
-    user_id: i64
     token: string
 }
 ```

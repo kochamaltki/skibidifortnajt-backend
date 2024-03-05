@@ -288,6 +288,7 @@ pub async fn delete_user(request: UserDeleteRequest) -> Result<impl warp::Reply,
         let delete_query = "DELETE FROM users WHERE user_id = ?"; // sqli
         let mut delete_statement = connection.prepare(delete_query).unwrap();
         delete_statement.bind((1, id)).unwrap();
+        delete_statement.next().unwrap();
 
         Ok(warp::reply::with_status(
                 format!("Delete succesful!"),

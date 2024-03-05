@@ -66,6 +66,31 @@ pub async fn get_posts_by_user(user_id: i64) -> Result<impl warp::Reply, warp::R
     Ok(warp::reply::json(&post))
 }
 
+pub async fn get_post_by_id(post_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
+    let connection = sqlite::open("projekt-db").unwrap();
+    let query = "SELECT * FROM posts WHERE post_id = ?";
+    let mut statement = connection.prepare(query).unwrap();
+    statement.bind((1, post_id)).unwrap();
+
+    if let Ok(State::Row) = statement.next() {
+        let post = Post { 
+            post_id: statement.read::<i64, _>("post_id").unwrap(),
+            user_id: statement.read::<i64, _>("user_id").unwrap(), 
+            date: statement.read::<i64, _>("date").unwrap(),
+            body: statement.read::<String, _>("body").unwrap()
+        };
+        Ok(warp::reply::json(&post))
+    } else {
+        let post = Post { 
+            post_id: -1,
+            user_id: -1,
+            date: -1,
+            body: "".to_string()
+        };
+        Ok(warp::reply::json(&post))
+    }
+}
+
 pub async fn get_posts() -> Result<impl warp::Reply, warp::Rejection> {
     let connection = sqlite::open("projekt-db").unwrap();
     let query = "SELECT * FROM posts";
@@ -86,9 +111,6 @@ pub async fn get_posts() -> Result<impl warp::Reply, warp::Rejection> {
     };
     Ok(warp::reply::json(&post))
 }
-
-
-
 
 pub async fn get_user_name(user_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = sqlite::open("projekt-db").unwrap();
@@ -289,8 +311,6 @@ pub async fn delete_user(request: UserDeleteRequest) -> Result<impl warp::Reply,
         ))
     }
 }
-
-
 
 pub fn post_json() -> impl Filter<Extract = (PostCreateRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())

@@ -3,6 +3,7 @@ pub mod get_token;
 pub mod get_secret;
 pub mod verify_token;
 pub mod api_calls;
+pub mod check_banned;
 use crate::api_calls::*;
 
 

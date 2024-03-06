@@ -23,7 +23,9 @@ CREATE TABLE tags(
 CREATE TABLE users(
 	user_id INTEGER PRIMARY KEY NOT NULL,
 	user_name VARCHAR(64) UNIQUE NOT NULL,
-	passwd VARCHAR(128) NOT NULL
+	passwd VARCHAR(128) NOT NULL,
+	is_admin INTEGER NOT NULL,
+	is_banned INTEGER NOT NULL
 );
 
 --   -------------            -----------          ----------------            ____________
@@ -34,3 +36,5 @@ CREATE TABLE users(
 --   |  passwd   |            |  date   |          ----------------            ------------
 --   -------------            |  body   |  
 --                            -----------  
+
+INSERT INTO users VALUES (0, 'root', 'toor', 1, 0);

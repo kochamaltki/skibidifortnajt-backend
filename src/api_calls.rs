@@ -6,6 +6,9 @@ use warp::Filter;
 use std::time::SystemTime;
 use crate::get_token::get_token;
 use crate::verify_token::{self, Claims};
+use crate::check_banned::check_banned;
+use crate::purge_data::purge_data;
+
 
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -46,6 +49,18 @@ pub struct PostCreateRequest {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct UserDeleteRequest {
+    pub token: String
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct UserUpgradeRequest {
+    pub user_id: i64,
+    pub token: String
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct UserBanRequest {
+    pub user_id: i64,
     pub token: String
 }
 
@@ -143,13 +158,13 @@ fn add_user_db(connection: &Connection, request: &SignupRequest) -> Json {
     warp::reply::json(&get_token(user_count))
 }
 
-fn get_id_passwd(connection: &Connection, user: &String) -> Result<(i64, String), String> {
-    let query = "SELECT passwd, user_id FROM users WHERE user_name = ?";
+fn get_id_passwd_adm(connection: &Connection, user: &String) -> Result<(i64, String, i64), String> {
+    let query = "SELECT passwd, user_id, is_admin FROM users WHERE user_name = ?";
     let mut statement = connection.prepare(query).unwrap();
     statement.bind((1, user.as_str())).unwrap();
 
     if let Ok(State::Row) = statement.next() {
-        Ok((statement.read::<i64, _>(1).unwrap(), statement.read::<String, _>(0).unwrap()))
+        Ok((statement.read::<i64, _>(1).unwrap(), statement.read::<String, _>(0).unwrap(), statement.read::<i64, _>(2).unwrap()))
     } else {
         Err("User does not exist".to_string())
     }
@@ -264,6 +279,16 @@ pub async fn post_post(request: PostCreateRequest) -> Result<impl warp::Reply, w
             );
 		}
 	}
+
+    if check_banned(token.claims.uid) == 1 {
+        println!("User {} not allowed to post", token.claims.uid);
+        return Ok(warp::reply::with_status(
+            format!("Not allowed to post!"),
+            warp::http::StatusCode::UNAUTHORIZED,
+        ));
+    };
+
+
     let id = token.claims.uid;
     
     let connection = sqlite::open("projekt-db").unwrap();
@@ -304,11 +329,11 @@ pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Reje
     let name = request.user_name;
 
     match get_id_passwd(&connection, &name) {
-        Ok((user_id, passwd)) => {
+        Ok((user_id, passwd, is_admin)) => {
             if passwd == request.passwd {
                 println!("User {} logged in", name);
                 Ok(warp::reply::with_status(
-                    warp::reply::json(&get_token(user_id)),
+                    warp::reply::json(&get_token(user_id, is_admin)),
                     warp::http::StatusCode::OK,
                 ))
             } else {
@@ -364,11 +389,18 @@ pub async fn delete_user(request: UserDeleteRequest) -> Result<impl warp::Reply,
     let connection = sqlite::open("projekt-db").unwrap();
     let id = token.claims.uid;
     if check_user_id(&connection, id) {
-        let delete_query = "DELETE FROM users WHERE user_id = ?"; // sqli
+        let delete_query = "DELETE FROM users WHERE user_id = ?";
         let mut delete_statement = connection.prepare(delete_query).unwrap();
         delete_statement.bind((1, id)).unwrap();
         delete_statement.next().unwrap();
 
+        drop(statement);
+        drop(delete_statement); // close the previous connection
+        drop(connection);
+
+        purge_data(id);
+
+        println!("User deletet with id : {}", id);
         Ok(warp::reply::with_status(
                 format!("Delete succesful!"),
                 warp::http::StatusCode::OK,
@@ -380,6 +412,101 @@ pub async fn delete_user(request: UserDeleteRequest) -> Result<impl warp::Reply,
         ))
     }
 }
+
+pub async fn upgrade_user(request: UserUpgradeRequest) -> Result<impl warp::Reply, warp::Rejection> {
+    let token: TokenData<Claims>;
+    match verify_token::verify_token(request.token) {
+        Ok(val) => {token = val}
+        Err(_) => {
+            return Ok(warp::reply::with_status(
+                    format!("Wrong token"),
+                    warp::http::StatusCode::UNAUTHORIZED,
+            ));
+        }
+    }
+
+    if token.claims.is_admin != 1 {
+        return Ok(warp::reply::with_status(
+                format!("Not admin"),
+                warp::http::StatusCode::UNAUTHORIZED,
+        ));
+    }
+
+    let connection = sqlite::open("projekt-db").unwrap();
+    let id = request.user_id;
+    let query = "SELECT user_name FROM users WHERE user_id = ?";
+    let mut statement = connection.prepare(query).unwrap();
+    statement.bind((1, id)).unwrap();
+
+    if let Ok(State::Row) = statement.next() {
+        let upgrade_query = "UPDATE users SET is_admin=1 WHERE user_id = ?";
+        let mut upgrade_statement = connection.prepare(upgrade_query).unwrap();
+        upgrade_statement.bind((1, id)).unwrap();
+        upgrade_statement.next().unwrap();
+        println!("User upgraded with id: {}", request.user_id);
+        Ok(warp::reply::with_status(
+                format!("Upgrade succesful!"),
+                warp::http::StatusCode::OK,
+        ))
+    } else {
+        Ok(warp::reply::with_status(
+                format!("User does not exist!"),
+                warp::http::StatusCode::NOT_FOUND,
+        ))
+    }
+}
+
+
+pub async fn ban_user(request: UserBanRequest) -> Result<impl warp::Reply, warp::Rejection> {
+    let token: TokenData<Claims>;
+    match verify_token::verify_token(request.token) {
+        Ok(val) => {token = val}
+        Err(_) => {
+            return Ok(warp::reply::with_status(
+                    format!("Wrong token"),
+                    warp::http::StatusCode::UNAUTHORIZED,
+            ));
+        }
+    }
+
+    if token.claims.is_admin != 1 {
+        return Ok(warp::reply::with_status(
+                format!("Not admin"),
+                warp::http::StatusCode::UNAUTHORIZED,
+        ));
+    }
+
+    let connection = sqlite::open("projekt-db").unwrap();
+    let id = request.user_id;
+    let query = "SELECT user_name FROM users WHERE user_id = ?";
+    let mut statement = connection.prepare(query).unwrap();
+    statement.bind((1, id)).unwrap();
+
+    if let Ok(State::Row) = statement.next() {
+        let upgrade_query = "UPDATE users SET is_banned=1 WHERE user_id = ?";
+        let mut upgrade_statement = connection.prepare(upgrade_query).unwrap();
+        upgrade_statement.bind((1, id)).unwrap();
+        upgrade_statement.next().unwrap();
+
+        drop(upgrade_statement);
+        drop(statement); // close the previous connection
+        drop(connection);
+
+        purge_data(id);
+
+        println!("User banned with id: {}", request.user_id);
+        Ok(warp::reply::with_status(
+                format!("Ban succesfull!"),
+                warp::http::StatusCode::OK,
+        ))
+    } else {
+        Ok(warp::reply::with_status(
+                format!("User does not exist!"),
+                warp::http::StatusCode::NOT_FOUND,
+        ))
+    }
+}
+
 
 pub fn post_json() -> impl Filter<Extract = (PostCreateRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
@@ -394,6 +521,14 @@ pub fn signup_json() -> impl Filter<Extract = (SignupRequest,), Error = warp::Re
 }
 
 pub fn delete_json() -> impl Filter<Extract = (UserDeleteRequest,), Error = warp::Rejection> + Clone {
+    warp::body::content_length_limit(1024 * 16).and(warp::body::json())
+}
+
+pub fn upgrade_json() -> impl Filter<Extract = (UserUpgradeRequest,), Error = warp::Rejection> + Clone {
+    warp::body::content_length_limit(1024 * 16).and(warp::body::json())
+}
+
+pub fn ban_json() -> impl Filter<Extract = (UserBanRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
 

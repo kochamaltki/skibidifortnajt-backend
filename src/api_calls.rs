@@ -50,6 +50,12 @@ pub struct UserUpgradeRequest {
     pub token: String
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct UserBanRequest {
+    pub user_id: i64,
+    pub token: String
+}
+
 
 pub async fn get_posts_by_user(user_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = sqlite::open("projekt-db").unwrap();
@@ -150,7 +156,9 @@ pub async fn get_user_id(user_name: String) -> Result<impl warp::Reply, warp::Re
 pub async fn post_post(post: PostCreateRequest) -> Result<impl warp::Reply, warp::Rejection> {
     let token: TokenData<Claims>;
     match verify_token::verify_token(post.token) {
-		Ok(val) => {token = val}
+		Ok(val) => {
+            token = val
+        }
         Err(_) => {
 			return Ok(warp::reply::with_status(
             	    format!("Wrong token"),
@@ -158,6 +166,16 @@ pub async fn post_post(post: PostCreateRequest) -> Result<impl warp::Reply, warp
         	));
 		}
 	}
+
+    if check_banned(token.claims.uid) == 1 {
+        println!("User {} not allowed to post", token.claims.uid);
+        return Ok(warp::reply::with_status(
+            format!("Not allowed to post!"),
+            warp::http::StatusCode::UNAUTHORIZED,
+        ));
+    };
+
+
     let id = token.claims.uid;
     let connection = sqlite::open("projekt-db").unwrap();
     let user_check_query = "SELECT user_id FROM users WHERE user_id = ?"; 
@@ -375,6 +393,51 @@ pub async fn upgrade_user(request: UserUpgradeRequest) -> Result<impl warp::Repl
     }
 }
 
+
+pub async fn ban_user(request: UserBanRequest) -> Result<impl warp::Reply, warp::Rejection> {
+    let token: TokenData<Claims>;
+    match verify_token::verify_token(request.token) {
+        Ok(val) => {token = val}
+        Err(_) => {
+            return Ok(warp::reply::with_status(
+                    format!("Wrong token"),
+                    warp::http::StatusCode::UNAUTHORIZED,
+            ));
+        }
+    }
+
+    if token.claims.is_admin != 1 {
+        return Ok(warp::reply::with_status(
+                format!("Not admin"),
+                warp::http::StatusCode::UNAUTHORIZED,
+        ));
+    }
+
+    let connection = sqlite::open("projekt-db").unwrap();
+    let id = request.user_id;
+    let query = "SELECT user_name FROM users WHERE user_id = ?";
+    let mut statement = connection.prepare(query).unwrap();
+    statement.bind((1, id)).unwrap();
+
+    if let Ok(State::Row) = statement.next() {
+        let upgrade_query = "UPDATE users SET is_banned=1 WHERE user_id = ?";
+        let mut upgrade_statement = connection.prepare(upgrade_query).unwrap();
+        upgrade_statement.bind((1, id)).unwrap();
+        upgrade_statement.next().unwrap();
+        println!("User banned with id: {}", request.user_id);
+        Ok(warp::reply::with_status(
+                format!("Ban succesfull!"),
+                warp::http::StatusCode::OK,
+        ))
+    } else {
+        Ok(warp::reply::with_status(
+                format!("User does not exist!"),
+                warp::http::StatusCode::NOT_FOUND,
+        ))
+    }
+}
+
+
 pub fn post_json() -> impl Filter<Extract = (PostCreateRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
@@ -392,6 +455,10 @@ pub fn delete_json() -> impl Filter<Extract = (UserDeleteRequest,), Error = warp
 }
 
 pub fn upgrade_json() -> impl Filter<Extract = (UserUpgradeRequest,), Error = warp::Rejection> + Clone {
+    warp::body::content_length_limit(1024 * 16).and(warp::body::json())
+}
+
+pub fn ban_json() -> impl Filter<Extract = (UserBanRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
 

@@ -24,10 +24,10 @@ pub struct PostList {
     pub post_list: Vec<Post>
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct TagList {
-    pub post_list: Vec<String>
-}
+// #[derive(Debug, Deserialize, Serialize, Clone)]
+// pub struct TagList {
+//     pub post_list: Vec<String>
+// }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct LoginRequest {
@@ -64,17 +64,16 @@ pub struct UserBanRequest {
     pub token: String
 }
 
-fn check_tag(connection: &Connection, tag: &String) -> bool {
-    let query = "SELECT tag_id FROM tags WHERE tag_name = ?";
-    let mut statement = connection.prepare(query).unwrap();
-    statement.bind((1, tag.as_str())).unwrap();
-
-    if let Ok(State::Row) = statement.next() {
-        true
-    } else {
-        false
-    }
-}
+// fn check_tag(connection: &Connection, tag: &String) -> bool {
+//     let query = "SELECT tag_id FROM tags WHERE tag_name = ?";
+//     let mut statement = connection.prepare(query).unwrap();
+//     statement.bind((1, tag.as_str())).unwrap();
+//     if let Ok(State::Row) = statement.next() {
+//         true
+//     } else {
+//         false
+//     }
+// }
 
 fn check_user_id(connection: &Connection, id: i64) -> bool {
     let query = "SELECT user_id FROM users WHERE user_id = ?";
@@ -271,16 +270,17 @@ pub async fn post_post(request: PostCreateRequest) -> Result<impl warp::Reply, w
     match verify_token::verify_token(request.token) {
 		Ok(val) => { token = val }
         Err(_) => {
-			return Ok(
-                warp::reply::with_status(
-            	    format!("Wrong token"),
-                	warp::http::StatusCode::UNAUTHORIZED,
-        	    )
-            );
+			return Ok(warp::reply::with_status(
+                format!("Wrong token"),
+                warp::http::StatusCode::UNAUTHORIZED,
+        	));
 		}
 	}
+    
+    let connection = sqlite::open("projekt-db").unwrap();
+    let id = token.claims.uid;
 
-    if check_banned(token.claims.uid) == 1 {
+    if check_banned(&connection, token.claims.uid) == 1 {
         println!("User {} not allowed to post", token.claims.uid);
         return Ok(warp::reply::with_status(
             format!("Not allowed to post!"),
@@ -288,18 +288,11 @@ pub async fn post_post(request: PostCreateRequest) -> Result<impl warp::Reply, w
         ));
     };
 
-
-    let id = token.claims.uid;
-    
-    let connection = sqlite::open("projekt-db").unwrap();
-    
     if !check_user_id(&connection, id) {
-        return Ok(
-            warp::reply::with_status(
-                format!("There is no user with id {}\n", id),
-                warp::http::StatusCode::NOT_FOUND,
-            )
-        );
+        return Ok(warp::reply::with_status(
+            format!("There is no user with id {}\n", id),
+            warp::http::StatusCode::NOT_FOUND,
+        ));
     };
     
     let post_count = count_posts(&connection).unwrap();
@@ -314,12 +307,10 @@ pub async fn post_post(request: PostCreateRequest) -> Result<impl warp::Reply, w
         }
     );
 
-    Ok(
-        warp::reply::with_status (
-            format!("Post added for user with id {}\n", id),
-            warp::http::StatusCode::CREATED,
-        )
-    )
+    Ok(warp::reply::with_status (
+        format!("Post added for user with id {}\n", id),
+        warp::http::StatusCode::CREATED,
+    ))
 }
 
 
@@ -360,8 +351,8 @@ pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Re
     if check_user_name(&connection, &request.user_name) {
         let r = "User already exists!".to_string();
         Ok(warp::reply::with_status(
-                warp::reply::json(&r),
-                warp::http::StatusCode::CONFLICT,
+            warp::reply::json(&r),
+            warp::http::StatusCode::CONFLICT,
         ))
 
     } else {
@@ -369,8 +360,8 @@ pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Re
         let token = add_user_db(&connection, &request);
 
         Ok(warp::reply::with_status(
-                token, 
-                warp::http::StatusCode::CREATED
+            token, 
+            warp::http::StatusCode::CREATED
         ))
     }
 }
@@ -398,13 +389,13 @@ pub async fn delete_user(request: UserDeleteRequest) -> Result<impl warp::Reply,
 
         println!("User deletet with id : {}", id);
         Ok(warp::reply::with_status(
-                format!("Delete succesful!"),
-                warp::http::StatusCode::OK,
+            format!("Delete succesful!"),
+            warp::http::StatusCode::OK,
         ))
     } else {
         Ok(warp::reply::with_status(
-                format!("User does not exist!"),
-                warp::http::StatusCode::NOT_FOUND,
+            format!("User does not exist!"),
+            warp::http::StatusCode::NOT_FOUND,
         ))
     }
 }
@@ -415,16 +406,16 @@ pub async fn upgrade_user(request: UserUpgradeRequest) -> Result<impl warp::Repl
         Ok(val) => {token = val}
         Err(_) => {
             return Ok(warp::reply::with_status(
-                    format!("Wrong token"),
-                    warp::http::StatusCode::UNAUTHORIZED,
+                format!("Wrong token"),
+                warp::http::StatusCode::UNAUTHORIZED,
             ));
         }
     }
 
     if token.claims.is_admin != 1 {
         return Ok(warp::reply::with_status(
-                format!("Not admin"),
-                warp::http::StatusCode::UNAUTHORIZED,
+            format!("Not admin"),
+            warp::http::StatusCode::UNAUTHORIZED,
         ));
     }
 
@@ -438,13 +429,13 @@ pub async fn upgrade_user(request: UserUpgradeRequest) -> Result<impl warp::Repl
         upgrade_statement.next().unwrap();
         println!("User upgraded with id: {}", request.user_id);
         Ok(warp::reply::with_status(
-                format!("Upgrade succesful!"),
-                warp::http::StatusCode::OK,
+            format!("Upgrade succesful!"),
+            warp::http::StatusCode::OK,
         ))
     } else {
         Ok(warp::reply::with_status(
-                format!("User does not exist!"),
-                warp::http::StatusCode::NOT_FOUND,
+            format!("User does not exist!"),
+            warp::http::StatusCode::NOT_FOUND,
         ))
     }
 }
@@ -456,16 +447,16 @@ pub async fn ban_user(request: UserBanRequest) -> Result<impl warp::Reply, warp:
         Ok(val) => {token = val}
         Err(_) => {
             return Ok(warp::reply::with_status(
-                    format!("Wrong token"),
-                    warp::http::StatusCode::UNAUTHORIZED,
+                format!("Wrong token"),
+                warp::http::StatusCode::UNAUTHORIZED,
             ));
         }
     }
 
     if token.claims.is_admin != 1 {
         return Ok(warp::reply::with_status(
-                format!("Not admin"),
-                warp::http::StatusCode::UNAUTHORIZED,
+            format!("Not admin"),
+            warp::http::StatusCode::UNAUTHORIZED,
         ));
     }
 
@@ -482,13 +473,13 @@ pub async fn ban_user(request: UserBanRequest) -> Result<impl warp::Reply, warp:
 
         println!("User banned with id: {}", request.user_id);
         Ok(warp::reply::with_status(
-                format!("Ban succesfull!"),
-                warp::http::StatusCode::OK,
+            format!("Ban succesfull!"),
+            warp::http::StatusCode::OK,
         ))
     } else {
         Ok(warp::reply::with_status(
-                format!("User does not exist!"),
-                warp::http::StatusCode::NOT_FOUND,
+            format!("User does not exist!"),
+            warp::http::StatusCode::NOT_FOUND,
         ))
     }
 }

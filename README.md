@@ -33,9 +33,16 @@
  - Effect: Creates a user with given name and password
  - Return: User Token
 #### /api/post/delete-user
- - Post : UserDeleteRequest
+ - Post: UserDeleteRequest
  - Effect: Deletes a user
- - Return: "Delete succesful!:200" / "User does not exist!:404"
+#### /api/admin/post/upgrade-user
+ - Post: UserUpgradeRequest
+ - Effect: User with given id becomes an admin
+ - Note: Token must belong to an admin
+#### /api/admin/post/ban-user
+ - Post: UserBanRequest
+ - Effect: User with given id is banned and their posts are deleted
+ - Note: Token must belong to an admin
 ### Types
 ```
 Post {
@@ -70,6 +77,18 @@ PostCreateRequest {
 ```
 ```
 UserDeleteRequest {
+    token: string
+}
+```
+```
+UserUpgradeRequest {
+    user_id: i64
+    token: string
+}
+```
+```
+UserBanRequest {
+    user_id: i64
     token: string
 }
 ```

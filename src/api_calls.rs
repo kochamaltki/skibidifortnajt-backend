@@ -5,6 +5,7 @@ use warp::Filter;
 use std::time::SystemTime;
 use crate::get_token::get_token;
 use crate::verify_token::{self, Claims};
+use crate::check_banned::check_banned;
 
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -214,9 +215,21 @@ pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Reje
 
     if let Ok(State::Row) = statement.next() {
         if statement.read::<String, _>(0).unwrap() == request.passwd{
-            println!("User {} logged in", name);
+            
             let user_id = statement.read::<i64, _>(1).unwrap();
+
+            if check_banned(user_id) == 1 {
+                println!("User {} not allowed to log in", name);
+                let _r="Account banned!".to_string();
+                return Ok(warp::reply::with_status(
+                        warp::reply::json(&_r),
+                        warp::http::StatusCode::UNAUTHORIZED,
+                ));
+            };
+
             let is_admin = statement.read::<i64, _>(2).unwrap();
+
+            println!("User {} logged in", name);
             Ok(warp::reply::with_status(
                     warp::reply::json(&get_token(user_id, is_admin)),
                     warp::http::StatusCode::OK,
@@ -265,7 +278,7 @@ pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Re
 
     } else {
 
-        let signup_query = "INSERT INTO users VALUES (:user_id, :user_name, :passwd, 0)";
+        let signup_query = "INSERT INTO users VALUES (:user_id, :user_name, :passwd, 0, 0)";
         let mut signup_statement = connection.prepare(signup_query).unwrap();
         signup_statement.bind::<&[(_, Value)]>(&[
             (":user_id", count.into()), 
@@ -297,12 +310,12 @@ pub async fn delete_user(request: UserDeleteRequest) -> Result<impl warp::Reply,
     }
     let connection = sqlite::open("projekt-db").unwrap();
     let id = token.claims.uid;
-    let query = "SELECT passwd FROM users WHERE user_id = ?"; // sqli
+    let query = "SELECT passwd FROM users WHERE user_id = ?";
     let mut statement = connection.prepare(query).unwrap();
     statement.bind((1, id)).unwrap();
 
     if let Ok(State::Row) = statement.next() {
-        let delete_query = "DELETE FROM users WHERE user_id = ?"; // sqli
+        let delete_query = "DELETE FROM users WHERE user_id = ?";
         let mut delete_statement = connection.prepare(delete_query).unwrap();
         delete_statement.bind((1, id)).unwrap();
         delete_statement.next().unwrap();

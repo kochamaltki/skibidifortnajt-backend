@@ -37,4 +37,5 @@ CREATE TABLE users(
 --   | is_admin  |            |  body   |  
 --   | is_banned |            -----------  
 --   -------------
+
 INSERT INTO users VALUES (0, 'root', 'toor', 1, 0);

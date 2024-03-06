@@ -24,10 +24,10 @@ pub struct PostList {
     pub post_list: Vec<Post>
 }
 
-// #[derive(Debug, Deserialize, Serialize, Clone)]
-// pub struct TagList {
-//     pub post_list: Vec<String>
-// }
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct TagList {
+    pub post_list: Vec<String>
+}
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct LoginRequest {
@@ -44,6 +44,7 @@ pub struct SignupRequest {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct PostCreateRequest {
     pub body: String,
+    pub tags: Vec<String>,
     pub token: String
 }
 
@@ -63,17 +64,6 @@ pub struct UserBanRequest {
     pub user_id: i64,
     pub token: String
 }
-
-// fn check_tag(connection: &Connection, tag: &String) -> bool {
-//     let query = "SELECT tag_id FROM tags WHERE tag_name = ?";
-//     let mut statement = connection.prepare(query).unwrap();
-//     statement.bind((1, tag.as_str())).unwrap();
-//     if let Ok(State::Row) = statement.next() {
-//         true
-//     } else {
-//         false
-//     }
-// }
 
 fn check_user_id(connection: &Connection, id: i64) -> bool {
     let query = "SELECT user_id FROM users WHERE user_id = ?";
@@ -121,18 +111,89 @@ fn count_users(connection: &Connection) -> Result<i64, &str> {
     }
 }
 
-fn add_post_db(connection: &Connection, post: Post) {
+fn count_tags(connection: &Connection) -> Result<i64, &str> {
+    let query = "SELECT COUNT(tag_id) FROM tags";
+    let mut statement = connection.prepare(query).unwrap();
+
+    if let Ok(State::Row) = statement.next() {
+        Ok(statement.read::<i64, _>(0).unwrap())
+    } else {
+        Err("Failed to count users")
+    }
+}
+
+fn get_tag_by_id(connection: &Connection, id: i64) -> Result<String, i8> {
+    let query = "SELECT tag_name FROM tags WHERE tag_id = ?";
+    let mut statement = connection.prepare(query).unwrap();
+    statement.bind((1, id)).unwrap();
+
+    if let Ok(State::Row) = statement.next() {
+        Ok(statement.read::<String, _>(0).unwrap())
+    } else {
+        Err(-1) 
+    }
+}
+
+fn get_tag_by_name(connection: &Connection, name: &String) -> Result<i64, i8> {
+    let query = "SELECT tag_id FROM tags WHERE tag_name = ?";
+    let mut statement = connection.prepare(query).unwrap();
+    statement.bind((1, name.as_str())).unwrap();
+
+    if let Ok(State::Row) = statement.next() {
+        Ok(statement.read::<i64, _>(0).unwrap())
+    } else {
+        Err(-1) 
+    }
+}
+
+fn add_post_tag_db(connection: &Connection, post_id: i64, tag_id: i64) {
+    let query = "INSERT INTO posts_tags VALUES (:post_id, :tag_id)";
+    let mut statement = connection.prepare(query).unwrap();
+    statement.bind::<&[(_, Value)]>(&[
+                   (":post_id", post_id.into()), 
+                   (":tag_id", tag_id.into()), 
+    ][..]).unwrap();
+    statement.next().unwrap();
+}
+
+fn add_tag_db(connection: &Connection, name: &String) -> i64 {
+    let tag_count = count_tags(connection).unwrap(); 
+    let query = "INSERT INTO tags VALUES (:tag_id, :tag_name)";
+    let mut statement = connection.prepare(query).unwrap();
+    statement.bind::<&[(_, Value)]>(&[
+                   (":tag_id", tag_count.into()), 
+                   (":tag_name", name.as_str().into()), 
+    ][..]).unwrap();
+    statement.next().unwrap();
+
+    tag_count
+}
+
+fn add_post_db(connection: &Connection, post: Post, tags: Vec<String>) {
     let time_since_epoch: i64 = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64;
-    
+    let post_id = post.post_id;
+
     let query = "INSERT INTO posts VALUES (:post_id, :user_id, :date, :body)";
     let mut statement = connection.prepare(query).unwrap();
     statement.bind::<&[(_, Value)]>(&[
-                   (":post_id", post.post_id.into()), 
+                   (":post_id", post_id.into()), 
                    (":user_id", post.user_id.into()), 
                    (":date", time_since_epoch.into()), 
                    (":body", post.body.into())
     ][..]).unwrap();
     statement.next().unwrap();
+
+    for tag in tags.iter() {
+        match get_tag_by_name(connection, tag) {
+            Ok(id) => {
+                add_post_tag_db(connection, post_id, id);
+            },
+            Err(_) => {
+                let id = add_tag_db(connection, tag); 
+                add_post_tag_db(connection, post_id, id);
+            }
+        }
+    }
 
     println!(
         "Added post with id {} for user id {} time since epoch {}", 
@@ -304,7 +365,8 @@ pub async fn post_post(request: PostCreateRequest) -> Result<impl warp::Reply, w
             user_id: id, 
             date: -1,
             body: request.body
-        }
+        },
+        request.tags
     );
 
     Ok(warp::reply::with_status (

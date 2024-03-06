@@ -7,5 +7,8 @@ curl --location --request POST "$path" \
 --header 'Content-Type: text/plain' \
 --data-raw '{
         "body": "'"$2"'",
-        "token": "'"$3"'"
+		"tags": [
+			"'"$3"'"
+		],
+        "token": "'"$4"'"
 }'

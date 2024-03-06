@@ -34,7 +34,7 @@ CREATE TABLE users(
 --   |  user_id  | 1 -|       | post_id | 1 - many |    post_id   |       |- 1 |  tag_id  |
 --   | user_name |    |- many | user_id |          |    tag_id    | many -|    | tag_name |
 --   |  passwd   |            |  date   |          ----------------            ------------
---   -------------            |  body   |  
---                            -----------  
-
+--   | is_admin  |            |  body   |  
+--   | is_banned |            -----------  
+--   -------------
 INSERT INTO users VALUES (0, 'root', 'toor', 1, 0);

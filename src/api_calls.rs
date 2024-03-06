@@ -145,7 +145,7 @@ fn add_post_db(connection: &Connection, post: Post) {
 
 fn add_user_db(connection: &Connection, request: &SignupRequest) -> Json {
     let user_count = count_users(connection).unwrap();
-    let signup_query = "INSERT INTO users VALUES (:user_id, :user_name, :passwd)";
+    let signup_query = "INSERT INTO users VALUES (:user_id, :user_name, :passwd, 0, 0)";
     let mut signup_statement = connection.prepare(signup_query).unwrap();
     signup_statement.bind::<&[(_, Value)]>(&[
                                            (":user_id", user_count.into()), 
@@ -155,7 +155,7 @@ fn add_user_db(connection: &Connection, request: &SignupRequest) -> Json {
     signup_statement.next().unwrap();
 
     println!("User {} created with id {}", request.user_name, user_count);
-    warp::reply::json(&get_token(user_count))
+    warp::reply::json(&get_token(user_count, 0))
 }
 
 fn get_id_passwd_adm(connection: &Connection, user: &String) -> Result<(i64, String, i64), String> {
@@ -328,7 +328,7 @@ pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Reje
     let connection = sqlite::open("projekt-db").unwrap();
     let name = request.user_name;
 
-    match get_id_passwd(&connection, &name) {
+    match get_id_passwd_adm(&connection, &name) {
         Ok((user_id, passwd, is_admin)) => {
             if passwd == request.passwd {
                 println!("User {} logged in", name);
@@ -394,11 +394,7 @@ pub async fn delete_user(request: UserDeleteRequest) -> Result<impl warp::Reply,
         delete_statement.bind((1, id)).unwrap();
         delete_statement.next().unwrap();
 
-        drop(statement);
-        drop(delete_statement); // close the previous connection
-        drop(connection);
-
-        purge_data(id);
+        purge_data(&connection, id);
 
         println!("User deletet with id : {}", id);
         Ok(warp::reply::with_status(
@@ -434,11 +430,8 @@ pub async fn upgrade_user(request: UserUpgradeRequest) -> Result<impl warp::Repl
 
     let connection = sqlite::open("projekt-db").unwrap();
     let id = request.user_id;
-    let query = "SELECT user_name FROM users WHERE user_id = ?";
-    let mut statement = connection.prepare(query).unwrap();
-    statement.bind((1, id)).unwrap();
 
-    if let Ok(State::Row) = statement.next() {
+    if check_user_id(&connection, id) {
         let upgrade_query = "UPDATE users SET is_admin=1 WHERE user_id = ?";
         let mut upgrade_statement = connection.prepare(upgrade_query).unwrap();
         upgrade_statement.bind((1, id)).unwrap();
@@ -478,21 +471,14 @@ pub async fn ban_user(request: UserBanRequest) -> Result<impl warp::Reply, warp:
 
     let connection = sqlite::open("projekt-db").unwrap();
     let id = request.user_id;
-    let query = "SELECT user_name FROM users WHERE user_id = ?";
-    let mut statement = connection.prepare(query).unwrap();
-    statement.bind((1, id)).unwrap();
 
-    if let Ok(State::Row) = statement.next() {
+    if check_user_id(&connection, id) {
         let upgrade_query = "UPDATE users SET is_banned=1 WHERE user_id = ?";
         let mut upgrade_statement = connection.prepare(upgrade_query).unwrap();
         upgrade_statement.bind((1, id)).unwrap();
         upgrade_statement.next().unwrap();
 
-        drop(upgrade_statement);
-        drop(statement); // close the previous connection
-        drop(connection);
-
-        purge_data(id);
+        purge_data(&connection, id);
 
         println!("User banned with id: {}", request.user_id);
         Ok(warp::reply::with_status(

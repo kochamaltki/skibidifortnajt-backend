@@ -6,6 +6,8 @@ use std::time::SystemTime;
 use crate::get_token::get_token;
 use crate::verify_token::{self, Claims};
 use crate::check_banned::check_banned;
+use crate::purge_data::purge_data;
+
 
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -237,7 +239,7 @@ pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Reje
             let user_id = statement.read::<i64, _>(1).unwrap();
 
             if check_banned(user_id) == 1 {
-                println!("User {} not allowed to log in", name);
+                println!("User {} not allowed to log in", user_id);
                 let _r="Account banned!".to_string();
                 return Ok(warp::reply::with_status(
                         warp::reply::json(&_r),
@@ -338,6 +340,13 @@ pub async fn delete_user(request: UserDeleteRequest) -> Result<impl warp::Reply,
         delete_statement.bind((1, id)).unwrap();
         delete_statement.next().unwrap();
 
+        drop(statement);
+        drop(delete_statement);
+        drop(connection);
+
+        purge_data(id);
+
+        println!("User deletet with id : {}", id);
         Ok(warp::reply::with_status(
                 format!("Delete succesful!"),
                 warp::http::StatusCode::OK,
@@ -424,6 +433,13 @@ pub async fn ban_user(request: UserBanRequest) -> Result<impl warp::Reply, warp:
         let mut upgrade_statement = connection.prepare(upgrade_query).unwrap();
         upgrade_statement.bind((1, id)).unwrap();
         upgrade_statement.next().unwrap();
+
+        drop(upgrade_statement);
+        drop(statement);
+        drop(connection);
+
+        purge_data(id);
+
         println!("User banned with id: {}", request.user_id);
         Ok(warp::reply::with_status(
                 format!("Ban succesfull!"),

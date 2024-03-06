@@ -1,11 +1,7 @@
-use sqlite::{State};
+use sqlite::{State, Connection};
 
 
-pub fn check_banned(user_id: i64) -> i64{
-
-    let connection = sqlite::open("projekt-db").unwrap();
-
-
+pub fn check_banned(connection: &Connection, user_id: i64) -> i64{
    let query = "SELECT is_banned FROM users WHERE user_id = ?";
    let mut statement = connection.prepare(query).unwrap();
    statement.bind((1, user_id)).unwrap();

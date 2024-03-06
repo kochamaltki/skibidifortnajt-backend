@@ -341,7 +341,7 @@ pub async fn delete_user(request: UserDeleteRequest) -> Result<impl warp::Reply,
         delete_statement.next().unwrap();
 
         drop(statement);
-        drop(delete_statement);
+        drop(delete_statement); // close the previous connection
         drop(connection);
 
         purge_data(id);
@@ -435,7 +435,7 @@ pub async fn ban_user(request: UserBanRequest) -> Result<impl warp::Reply, warp:
         upgrade_statement.next().unwrap();
 
         drop(upgrade_statement);
-        drop(statement);
+        drop(statement); // close the previous connection
         drop(connection);
 
         purge_data(id);

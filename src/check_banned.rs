@@ -16,7 +16,5 @@ pub fn check_banned(user_id: i64) -> i64{
         1
     };
 
-
-
     is_banned
 }

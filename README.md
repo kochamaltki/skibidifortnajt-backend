@@ -9,11 +9,17 @@
 #### /api/get/posts/by-user/{id}
  - Get: PostList
  - Note: Only from user {id}
+#### /api/get/posts/by-tag/{tag}
+ - Get: PostList
+ - Note: Posts with tag {tag}
 #### /api/get/posts/by-id/{id}
  - Get: Post
- - Note: Posy with id {id}
+ - Note: Post with id {id}
 #### /api/get/posts/all
  - Get: PostList
+#### /api/get/tags/from-post/{id}
+ - Get: TagList
+ - Note: All tags of post {id}
 #### /api/get/user/name/{id}
  - Get: string
  - Note: Get username of user {id} ("" if there is no such user) 
@@ -55,6 +61,11 @@ Post {
 ```
 PostList {
     post_list: Vec<Post>
+}
+```
+```
+TagList {
+    tag_list: Vec<string (max 64 chars)>
 }
 ```
 ```

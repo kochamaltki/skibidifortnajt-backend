@@ -26,7 +26,7 @@ pub struct PostList {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TagList {
-    pub post_list: Vec<String>
+    pub tag_list: Vec<String>
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -252,6 +252,85 @@ pub async fn get_posts_by_user(user_id: i64) -> Result<impl warp::Reply, warp::R
     Ok(warp::reply::json(&post))
 }
 
+pub async fn get_posts_by_tag(tag: String) -> Result<impl warp::Reply, warp::Rejection> {
+    let connection = sqlite::open("projekt-db").unwrap();
+    let tag_id = match get_tag_by_name(&connection, &tag) {
+        Ok(val) => {
+            val
+        },
+        Err(_) => {
+            let t = format!("No tag named {}", tag);
+            return Ok(warp::reply::json(&t));
+        }
+    };
+
+    let query = "
+        SELECT posts.post_id, posts.user_id, posts.date, posts.body 
+        FROM posts 
+        JOIN posts_tags
+        ON posts.post_id = posts_tags.post_id 
+        WHERE posts_tags.tag_id = ?
+    ";
+    let mut statement = connection.prepare(query).unwrap();
+    statement.bind((1, tag_id)).unwrap();
+
+    let mut post_list: Vec<Post> = Vec::new();
+    while let Ok(State::Row) = statement.next() {
+        post_list.push(Post { 
+            post_id: statement.read::<i64, _>("post_id").unwrap(),
+            user_id: statement.read::<i64, _>("user_id").unwrap(), 
+            date: statement.read::<i64, _>("date").unwrap(),
+            body: statement.read::<String, _>("body").unwrap()
+        }
+        );
+    }
+
+    let post = PostList { post_list };
+    Ok(warp::reply::json(&post))
+}
+
+pub async fn get_tags_from_post(post_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
+    let connection = sqlite::open("projekt-db").unwrap();
+    let query = "
+        SELECT tags.tag_name
+        FROM posts_tags
+        JOIN tags
+        ON tags.tag_id=posts_tags.tag_id
+        WHERE posts_tags.post_id = ?
+    ";
+    let mut statement = connection.prepare(query).unwrap();
+    statement.bind((1, post_id)).unwrap();
+    
+    let mut tag_list: Vec<String> = Vec::new();
+    while let Ok(State::Row) = statement.next() {
+        tag_list.push(statement.read::<String, _>(0).unwrap());
+    }
+
+    let tags = TagList { tag_list };
+    Ok(warp::reply::json(&tags))
+}
+
+pub async fn get_posts() -> Result<impl warp::Reply, warp::Rejection> {
+    let connection = sqlite::open("projekt-db").unwrap();
+    let query = "SELECT * FROM posts";
+    let mut statement = connection.prepare(query).unwrap();
+
+    let mut post_list: Vec<Post> = Vec::new();
+    while let Ok(State::Row) = statement.next() {
+        post_list.push(Post { 
+            post_id: statement.read::<i64, _>("post_id").unwrap(),
+            user_id: statement.read::<i64, _>("user_id").unwrap(), 
+            date: statement.read::<i64, _>("date").unwrap(),
+            body: statement.read::<String, _>("body").unwrap()
+        });
+    }
+
+    let post = PostList {
+        post_list
+    };
+    Ok(warp::reply::json(&post))
+}
+
 pub async fn get_post_by_id(post_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = sqlite::open("projekt-db").unwrap();
     let query = "SELECT * FROM posts WHERE post_id = ?";
@@ -275,27 +354,6 @@ pub async fn get_post_by_id(post_id: i64) -> Result<impl warp::Reply, warp::Reje
         };
         Ok(warp::reply::json(&post))
     }
-}
-
-pub async fn get_posts() -> Result<impl warp::Reply, warp::Rejection> {
-    let connection = sqlite::open("projekt-db").unwrap();
-    let query = "SELECT * FROM posts";
-    let mut statement = connection.prepare(query).unwrap();
-
-    let mut post_list: Vec<Post> = Vec::new();
-    while let Ok(State::Row) = statement.next() {
-        post_list.push(Post { 
-            post_id: statement.read::<i64, _>("post_id").unwrap(),
-            user_id: statement.read::<i64, _>("user_id").unwrap(), 
-            date: statement.read::<i64, _>("date").unwrap(),
-            body: statement.read::<String, _>("body").unwrap()
-        });
-    }
-
-    let post = PostList {
-        post_list
-    };
-    Ok(warp::reply::json(&post))
 }
 
 pub async fn get_user_name(user_id: i64) -> Result<impl warp::Reply, warp::Rejection> {

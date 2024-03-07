@@ -8,7 +8,8 @@ curl --location --request POST "$path" \
 --data-raw '{
         "body": "'"$2"'",
 		"tags": [
-			"'"$3"'"
+			"'"$3"'",
+			"'"$4"'"
 		],
-        "token": "'"$4"'"
+        "token": "'"$5"'"
 }'

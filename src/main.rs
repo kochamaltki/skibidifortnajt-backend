@@ -71,13 +71,21 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path::end())
         .and_then(get_user_id);
 
-    let post_post = warp::post()
+    let post = warp::post()
         .and(warp::path("api"))
         .and(warp::path("post"))
         .and(warp::path("add-post"))
         .and(warp::path::end())
         .and(post_json())
-        .and_then(post_post);
+        .and_then(post);
+
+    let react = warp::post()
+        .and(warp::path("api"))
+        .and(warp::path("post"))
+        .and(warp::path("react"))
+        .and(warp::path::end())
+        .and(react_json())
+        .and_then(react);
 
     let login = warp::post()
         .and(warp::path("api")) 
@@ -123,7 +131,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
 
 
     get_posts_by_user
-        .or(post_post)
+        .or(post)
         .or(get_posts)
         .or(login)
         .or(signup)
@@ -135,6 +143,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .or(ban)
         .or(get_posts_by_tag)
         .or(get_tags_from_post)
+        .or(react)
 }
 
 #[tokio::main]

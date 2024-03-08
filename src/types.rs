@@ -38,6 +38,13 @@ pub struct PostCreateRequest {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ReactRequest {
+    pub post_id: i64,
+    pub reaction_type: i64,
+    pub token: String
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct UserDeleteRequest {
     pub token: String
 }

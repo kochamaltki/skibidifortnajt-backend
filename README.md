@@ -27,28 +27,42 @@
  - Get: i64
  - Note: Get id of user {name} (-1 if there is no such user)
 #### /api/post/add-post
- - Post: Post
+ - Post: PostCreateRequest
  - Effect: Adds a post to the db
+ - Return: 201 ("Post created") / 401 ("Wrong token" / "User is banned") / 404 ("User not found")
+ - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
+#### /api/post/react
+ - Post: ReactRequest
+ - Effects: Adds reaction to a post
+ - Return: 200 ("Reaction added") / 406 ("Reaction already exists")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/post/login
  - Post: LoginRequest
  - Effect: Login ig
- - Return: User token
+ - Return: 200 (token) / 401 ("Password incorrect") / 404 ("User not found")
+ - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/post/signup
  - Post: SignupRequest
  - Effect: Creates a user with given name and password
- - Return: User Token
+ - Return: 201 (token) / 409 ("User already exists")
+ - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/post/delete-user
  - Post: UserDeleteRequest
  - Effect: Deletes a user
+ - Return: 200 ("User deleted") / 401 ("Wrong token") / 404 ("User not found")
+ - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/admin/post/upgrade-user
  - Post: UserUpgradeRequest
  - Effect: User with given id becomes an admin
  - Note: Token must belong to an admin
+ - Return: 200 ("Upgrade succesful") / 401 ("User is not admin" / "Wrong token") / 404 ("User not found")
+ - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/admin/post/ban-user
  - Post: UserBanRequest
  - Effect: User with given id is banned and their posts are deleted
  - Note: Token must belong to an admin
+ - Return: 200 ("Ban succesful") / 401 ("User is not admin" / "Wrong token") / 404 ("User not found")
+ - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 ### Types
 ```
 Post {
@@ -83,6 +97,13 @@ SignupRequest {
 ```
 PostCreateRequest {
     body: string (max 2048 chars)
+    token: string
+}
+```
+```
+ReactRequest {
+    post_id: i64
+    reaction_type: i64
     token: string
 }
 ```

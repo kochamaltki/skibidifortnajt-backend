@@ -93,6 +93,35 @@ pub async fn get_posts_by_tag(tag: String) -> Result<impl warp::Reply, warp::Rej
     ))
 }
 
+pub async fn get_posts() -> Result<impl warp::Reply, warp::Rejection> {
+    let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
+    let query = "SELECT * FROM posts";
+
+    let post_list = connection.call(move |conn| {
+        let mut statement = conn.prepare(query).unwrap();
+        let mut rows = statement.query(params![]).unwrap(); 
+        let mut post_vec: Vec<Post> = Vec::new();
+        while let Ok(row) = rows.next() {
+            let row = row.unwrap();
+            post_vec.push(
+                Post {
+                    post_id: row.get(0).unwrap(),
+                    user_id: row.get(1).unwrap(),
+                    date: row.get(2).unwrap(),
+                    body: row.get(3).unwrap()
+                }
+            );
+        }
+        Ok(post_vec)
+    }).await.unwrap();
+
+    let post = PostList {post_list};
+    Ok(warp::reply::with_status(
+        warp::reply::json(&post),
+        warp::http::StatusCode::OK
+    ))
+}
+
 pub async fn get_tags_from_post(post_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
     let query = "
@@ -119,35 +148,6 @@ pub async fn get_tags_from_post(post_id: i64) -> Result<impl warp::Reply, warp::
     let tags = TagList { tag_list };
     Ok(warp::reply::with_status(
         warp::reply::json(&tags),
-        warp::http::StatusCode::OK
-    ))
-}
-
-pub async fn get_posts() -> Result<impl warp::Reply, warp::Rejection> {
-    let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
-    let query = "SELECT * FROM posts";
-
-    let post_list = connection.call(move |conn| {
-        let mut statement = conn.prepare(query).unwrap();
-        let mut rows = statement.query(params![]).unwrap(); 
-        let mut post_vec: Vec<Post> = Vec::new();
-        while let Ok(row) = rows.next() {
-            let row = row.unwrap();
-            post_vec.push(
-                Post {
-                    post_id: row.get(0).unwrap(),
-                    user_id: row.get(1).unwrap(),
-                    date: row.get(2).unwrap(),
-                    body: row.get(3).unwrap()
-                }
-            );
-        }
-        Ok(post_vec)
-    }).await.unwrap();
-
-    let post = PostList {post_list};
-    Ok(warp::reply::with_status(
-        warp::reply::json(&post),
         warp::http::StatusCode::OK
     ))
 }
@@ -251,7 +251,7 @@ pub async fn get_user_id(user_name: String) -> Result<impl warp::Reply, warp::Re
     ))
 }	
 
-pub async fn post_post(request: PostCreateRequest) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn post(request: PostCreateRequest) -> Result<impl warp::Reply, warp::Rejection> {
     let token: TokenData<Claims>;
     match verify_token::verify_token(request.token) {
 		Ok(val) => { token = val }
@@ -304,6 +304,37 @@ pub async fn post_post(request: PostCreateRequest) -> Result<impl warp::Reply, w
     ))
 }
 
+pub async fn react(request: ReactRequest) -> Result<impl warp::Reply, warp::Rejection> {
+    let token: TokenData<Claims>;
+    match verify_token::verify_token(request.token) {
+        Ok(val) => {token = val}
+        Err(_) => {
+            let r = "Wrong token";
+            return Ok(warp::reply::with_status(
+                    warp::reply::json(&r),
+                    warp::http::StatusCode::UNAUTHORIZED,
+                    ));
+        }
+    }
+    
+    let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
+    let existed = add_reaction_db(&connection, token.claims.uid, request.post_id, request.reaction_type).await;
+
+    if existed {
+        let r = "Reaction already exists";
+        Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::NOT_ACCEPTABLE,
+        ))
+    } else {
+        let r = "Reaction added";
+        Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::OK,
+        ))
+    }
+}
+
 pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
     let name = request.user_name;
@@ -318,7 +349,7 @@ pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Reje
                 ))
             } else {
                 info!("User {} failed to log in", name);
-                let r="Password incorrect!".to_string();
+                let r="Password incorrect".to_string();
                 Ok(warp::reply::with_status(
                     warp::reply::json(&r),
                     warp::http::StatusCode::UNAUTHORIZED,
@@ -338,7 +369,7 @@ pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Re
     let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
 
     if check_user_name(&connection, request.user_name.clone()).await {
-        let r = "User already exists!".to_string();
+        let r = "User already exists".to_string();
         Ok(warp::reply::with_status(
             warp::reply::json(&r),
             warp::http::StatusCode::CONFLICT,
@@ -397,7 +428,7 @@ pub async fn upgrade_user(request: UserUpgradeRequest) -> Result<impl warp::Repl
     match verify_token::verify_token(request.token) {
         Ok(val) => {token = val}
         Err(_) => {
-            let r = "Wrong token";
+            let r = "Wrong tokeyn";
             return Ok(warp::reply::with_status(
                 warp::reply::json(&r),
                 warp::http::StatusCode::UNAUTHORIZED,
@@ -508,5 +539,9 @@ pub fn upgrade_json() -> impl Filter<Extract = (UserUpgradeRequest,), Error = wa
 }
 
 pub fn ban_json() -> impl Filter<Extract = (UserBanRequest,), Error = warp::Rejection> + Clone {
+    warp::body::content_length_limit(1024 * 16).and(warp::body::json())
+}
+
+pub fn react_json() -> impl Filter<Extract = (ReactRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }

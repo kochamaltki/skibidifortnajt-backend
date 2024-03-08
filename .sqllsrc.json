@@ -1,0 +1,10 @@
+{
+  "connections": [
+    {
+      "name": "projekt-db",
+      "adapter": "sqlite3",
+      "filename": "/home/dr/dev/skibidifortnajt-backend/projekt-db",
+      "projectPaths": ["/home/dr/dev/skibidifortnajt-backend"]
+    }
+  ]
+}

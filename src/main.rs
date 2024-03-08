@@ -3,6 +3,8 @@ pub mod get_token;
 pub mod get_secret;
 pub mod verify_token;
 pub mod api_calls;
+pub mod types;
+pub mod database_functions;
 use crate::api_calls::*;
 
 
@@ -137,6 +139,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt::init();
     let cors = warp::cors().allow_any_origin();
     let routes = routes().with(cors);
     warp::serve(routes).run(([127, 0, 0, 1], 8000)).await;

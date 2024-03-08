@@ -7,6 +7,8 @@ edition = "2021"
 warp = "0.3"
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
-tokio-rusqlite = "0.5.1"
+tokio-rusqlite = "0.5"
 jsonwebtoken = "=7.2"
-time = "0.3.34"
+time = "0.3"
+tracing = "0.1"
+tracing-subscriber = "0.3"

@@ -7,25 +7,28 @@
  - Run `./deploy.sh` from the root directory
 ### Acces points
 #### /api/get/posts/by-user/{id}
- - Get: PostList
+ - Get: 200 (PostList) / 404 ("User not found")
  - Note: Only from user {id}
 #### /api/get/posts/by-tag/{tag}
- - Get: PostList
+ - Get: 200 (PostList) / 404 ("Tag not found")
  - Note: Posts with tag {tag}
 #### /api/get/posts/by-id/{id}
- - Get: Post
+ - Get: 200 (Post) / 404 ("Post not found")
  - Note: Post with id {id}
 #### /api/get/posts/all
- - Get: PostList
+ - Get: 200 (PostList)
 #### /api/get/tags/from-post/{id}
- - Get: TagList
+ - Get: 200 (TagList) / 404 ("Post not found")
  - Note: All tags of post {id}
 #### /api/get/user/name/{id}
- - Get: string
+ - Get: 200 (string) / 404 ("User not found")
  - Note: Get username of user {id} ("" if there is no such user) 
 #### /api/get/user/id/{name}
- - Get: i64
+ - Get: 200 (i64) / 404 ("User not found")
  - Note: Get id of user {name} (-1 if there is no such user)
+#### /api/get/reactions/from-post/{id}
+ - Get: 200 (ReactionCountMap) / 404 ("Post not found")
+ - Note: Get (reaction, count) map from post {id}
 #### /api/post/add-post
  - Post: PostCreateRequest
  - Effect: Adds a post to the db
@@ -80,6 +83,11 @@ PostList {
 ```
 TagList {
     tag_list: Vec<string (max 64 chars)>
+}
+```
+```
+ReactionCountMap {
+    reaction_count_map: map(i64, i64)
 }
 ```
 ```

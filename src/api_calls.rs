@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use jsonwebtoken::TokenData;
 use tokio_rusqlite::params;
 use tracing::info;
@@ -24,8 +26,7 @@ pub async fn get_posts_by_user(user_id: i64) -> Result<impl warp::Reply, warp::R
         let mut statement = conn.prepare(query).unwrap();
         let mut rows = statement.query(params![user_id]).unwrap(); 
         let mut post_vec: Vec<Post> = Vec::new();
-        while let Ok(row) = rows.next() {
-            let row = row.unwrap();
+        while let Ok(Some(row)) = rows.next() {
             post_vec.push(
                 Post {
                     post_id: row.get(0).unwrap(),
@@ -72,8 +73,7 @@ pub async fn get_posts_by_tag(tag: String) -> Result<impl warp::Reply, warp::Rej
         let mut statement = conn.prepare(query).unwrap();
         let mut rows = statement.query(params![tag_id]).unwrap(); 
         let mut post_vec: Vec<Post> = Vec::new();
-        while let Ok(row) = rows.next() {
-            let row = row.unwrap();
+        while let Ok(Some(row)) = rows.next() {
             post_vec.push(
                 Post {
                     post_id: row.get(0).unwrap(),
@@ -101,8 +101,7 @@ pub async fn get_posts() -> Result<impl warp::Reply, warp::Rejection> {
         let mut statement = conn.prepare(query).unwrap();
         let mut rows = statement.query(params![]).unwrap(); 
         let mut post_vec: Vec<Post> = Vec::new();
-        while let Ok(row) = rows.next() {
-            let row = row.unwrap();
+        while let Ok(Some(row)) = rows.next() {
             post_vec.push(
                 Post {
                     post_id: row.get(0).unwrap(),
@@ -131,13 +130,20 @@ pub async fn get_tags_from_post(post_id: i64) -> Result<impl warp::Reply, warp::
         ON tags.tag_id=posts_tags.tag_id
         WHERE posts_tags.post_id = ?
     ";
+
+    if !check_post(&connection, post_id).await {
+        let r = "Post not found";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::NOT_FOUND
+        ));
+    }
     
     let tag_list = connection.call(move |conn| {
         let mut statement = conn.prepare(query).unwrap();
         let mut rows = statement.query(params![post_id]).unwrap(); 
         let mut tag_vec: Vec<String> = Vec::new();
-        while let Ok(row) = rows.next() {
-            let row = row.unwrap();
+        while let Ok(Some(row)) = rows.next() {
             tag_vec.push(
                 row.get(0).unwrap()
             );
@@ -160,8 +166,7 @@ pub async fn get_post_by_id(post_id: i64) -> Result<impl warp::Reply, warp::Reje
         let mut statement = conn.prepare(query).unwrap();
         let mut rows = statement.query(params![post_id]).unwrap(); 
         let post: Post;
-        if let Ok(row) = rows.next() {
-            let row = row.unwrap();
+        if let Ok(Some(row)) = rows.next() {
             post = Post {
                     post_id: row.get(0).unwrap(),
                     user_id: row.get(1).unwrap(),
@@ -208,8 +213,7 @@ pub async fn get_user_name(user_id: i64) -> Result<impl warp::Reply, warp::Rejec
     let name = connection.call(move |conn| {
         let mut statement = conn.prepare(query).unwrap();
         let mut rows = statement.query(params![user_id]).unwrap();
-        if let Ok(row) = rows.next() {
-            let row =row.unwrap();
+        if let Ok(Some(row)) = rows.next() {
             Ok(row.get(0).unwrap())
         } else {
             Ok("".to_string())
@@ -237,11 +241,10 @@ pub async fn get_user_id(user_name: String) -> Result<impl warp::Reply, warp::Re
     let id = connection.call(move |conn| {
         let mut statement = conn.prepare(query).unwrap();
         let mut rows = statement.query(params![user_name]).unwrap();
-        if let Ok(row) = rows.next() {
-            let row =row.unwrap();
+        if let Ok(Some(row)) = rows.next() {
             Ok(row.get(0).unwrap())
         } else {
-            Ok("".to_string())
+            Ok(-1)
         }
     }).await.unwrap();
 
@@ -250,6 +253,38 @@ pub async fn get_user_id(user_name: String) -> Result<impl warp::Reply, warp::Re
         warp::http::StatusCode::OK
     ))
 }	
+
+pub async fn get_reactions_from_post(post_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
+    let query = "SELECT type, COUNT(user_id) FROM reactions WHERE post_id = ? GROUP BY type";
+    let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
+
+    if !check_post(&connection, post_id).await {
+        let r = "Post not found";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::NOT_FOUND
+        ));
+    }
+
+    let reaction_count_map = connection.call(move |conn| {
+        let mut statement = conn.prepare(query).unwrap();
+        let mut rows = statement.query(params![post_id]).unwrap();
+        let mut reactions_map: HashMap<i64, i64> = HashMap::new();
+        while let Ok(Some(row)) = rows.next() {
+            reactions_map.insert(row.get(0).unwrap(), row.get(1).unwrap());
+        }
+        Ok(reactions_map)
+    }).await.unwrap();
+
+    let reactions = ReactionCountMap {
+        reaction_count_map
+    };
+
+    Ok(warp::reply::with_status(
+        warp::reply::json(&reactions), 
+        warp::http::StatusCode::OK
+    ))
+}
 
 pub async fn post(request: PostCreateRequest) -> Result<impl warp::Reply, warp::Rejection> {
     let token: TokenData<Claims>;
@@ -318,6 +353,25 @@ pub async fn react(request: ReactRequest) -> Result<impl warp::Reply, warp::Reje
     }
     
     let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
+    
+    if check_banned(&connection, token.claims.uid).await == true {
+        info!("User {} not allowed to react", token.claims.uid);
+        let r = "User is banned";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::UNAUTHORIZED,
+        ));
+    };
+
+
+    if !check_post(&connection, request.post_id).await {
+        let r = "Post not found";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::NOT_FOUND
+        ));
+    }
+    
     let existed = add_reaction_db(&connection, token.claims.uid, request.post_id, request.reaction_type).await;
 
     if existed {
@@ -399,7 +453,7 @@ pub async fn delete_user(request: UserDeleteRequest) -> Result<impl warp::Reply,
     let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
     let id = token.claims.uid;
     if check_user_id(&connection, id).await {
-        let delete_query = "DELETE FROM users WHERE user_id = ?";
+        let delete_query = "UPDATE users SET is_banned=1 WHERE user_id = ?";
         connection.call(move |conn| {
             let mut statement = conn.prepare(delete_query).unwrap();
             statement.execute(params![id]).unwrap();
@@ -428,7 +482,7 @@ pub async fn upgrade_user(request: UserUpgradeRequest) -> Result<impl warp::Repl
     match verify_token::verify_token(request.token) {
         Ok(val) => {token = val}
         Err(_) => {
-            let r = "Wrong tokeyn";
+            let r = "Wrong token";
             return Ok(warp::reply::with_status(
                 warp::reply::json(&r),
                 warp::http::StatusCode::UNAUTHORIZED,

@@ -4,7 +4,7 @@ use tokio_rusqlite::{Connection, params};
 use tracing::info;
 use warp::reply::Json;
 
-use crate::{get_token::get_token, types::{Post, ReactRequest, SignupRequest}};
+use crate::{get_token::get_token, types::{Post, SignupRequest}};
 
 pub async fn check_user_id(connection: &Connection, id: i64) -> bool {
     let query = "SELECT user_id FROM users WHERE user_id = ?";
@@ -32,6 +32,19 @@ pub async fn check_user_name(connection: &Connection, name: String) -> bool {
     }).await.unwrap()
 }
 
+pub async fn check_post(connection: &Connection, id: i64) -> bool {
+    let query = "SELECT post_id FROM posts WHERE post_id = ?";
+    connection.call(move |conn| {
+        let mut statement = conn.prepare(query).unwrap();
+        let mut rows = statement.query([id]).unwrap();
+        if let Some(_) = rows.next().unwrap() {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }).await.unwrap()
+}
+
 pub async fn check_banned(connection: &Connection, user_id: i64) -> bool {
     let query = "SELECT is_banned FROM users WHERE user_id = ?";
 
@@ -42,8 +55,7 @@ pub async fn check_banned(connection: &Connection, user_id: i64) -> bool {
     let is_banned = connection.call(move |conn| {
         let mut statement = conn.prepare(query).unwrap();
         let mut rows = statement.query(params![user_id]).unwrap();
-        if let Ok(row) = rows.next() {
-            let row = row.unwrap();
+        if let Ok(Some(row)) = rows.next() {
             Ok(row.get::<_, i64>(0).unwrap() != 0)
         } else {
             Ok(true)
@@ -263,7 +275,7 @@ pub async fn check_reaction(connection: &Connection, user_id: i64, post_id: i64,
     connection.call(move |conn| {
         let mut statement = conn.prepare(query).unwrap();
         let mut rows = statement.query(params![reaction_type, user_id, post_id]).unwrap();
-        if let Ok(_) = rows.next() {
+        if let Ok(Some(_)) = rows.next() {
             Ok(true)
         } else {
             Ok(false)
@@ -275,6 +287,7 @@ pub async fn add_reaction_db(connection: &Connection, user_id: i64, post_id: i64
     let query = "INSERT INTO reactions VALUES (?, ?, ?)"; 
 
     if check_reaction(connection, user_id, post_id, reaction_type).await {
+        info!("Reaction already exists");
         return true;
     }
 
@@ -284,6 +297,6 @@ pub async fn add_reaction_db(connection: &Connection, user_id: i64, post_id: i64
         Ok(0)
     }).await.unwrap();
 
-    info!("Reaction {} added for {} by user {}", reaction_type, post_id, user_id);
+    info!("Reaction {} added for post {} by user {}", reaction_type, post_id, user_id);
     false
 }

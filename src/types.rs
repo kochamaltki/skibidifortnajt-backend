@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -16,6 +18,11 @@ pub struct PostList {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TagList {
     pub tag_list: Vec<String>
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ReactionCountMap {
+    pub reaction_count_map: HashMap<i64, i64>
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

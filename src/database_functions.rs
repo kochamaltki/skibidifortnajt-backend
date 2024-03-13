@@ -270,7 +270,7 @@ pub async fn get_id_passwd_adm(connection: &Connection, user: String) -> Result<
 }
 
 pub async fn check_reaction(connection: &Connection, user_id: i64, post_id: i64, reaction_type: i64) -> bool {
-    let query = "SELECT post_id FROM reactions WHERE type = ? AND user_id = ? AND post_id = ?";
+    let query = "SELECT post_id FROM reactions WHERE post_id = ?";
 
     connection.call(move |conn| {
         let mut statement = conn.prepare(query).unwrap();

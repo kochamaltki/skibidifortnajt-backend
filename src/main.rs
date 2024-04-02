@@ -80,6 +80,24 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path::end())
         .and_then(get_reactions_from_post);
 
+    // let get_posts_from_search = warp::get()
+    //     .and(warp::path("api"))
+    //     .and(warp::path("get"))
+    //     .and(warp::path("posts"))
+    //     .and(warp::path("from-search"))
+    //     .and(warp::path::param())
+    //     .and(warp::path::end())
+    //     .and_then(get_posts_from_search);
+
+    // let get_users_from_search = warp::get()
+    //     .and(warp::path("api"))
+    //     .and(warp::path("get"))
+    //     .and(warp::path("users"))
+    //     .and(warp::path("from-search"))
+    //     .and(warp::path::param())
+    //     .and(warp::path::end())
+    //     .and_then(get_posts_from_search);
+
     let post = warp::post()
         .and(warp::path("api"))
         .and(warp::path("post"))
@@ -154,6 +172,8 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .or(get_tags_from_post)
         .or(react)
         .or(get_reactions_from_post)
+        // .or(get_posts_from_search)
+        // .or(get_users_from_search)
 }
 
 #[tokio::main]

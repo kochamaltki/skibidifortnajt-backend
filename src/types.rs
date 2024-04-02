@@ -10,6 +10,15 @@ pub struct Post {
     pub body: String,
 }
 
+// #[derive(Debug, Deserialize, Serialize, Clone)]
+// pub struct User {
+//     pub user_id: i64,
+//     pub user_name: String,
+//     pub display_name: String,
+//     pub profile_picture: String,
+//     pub description: String 
+// }
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct PostList {
     pub post_list: Vec<Post>

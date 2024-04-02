@@ -89,6 +89,11 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path::end())
         .and_then(get_reactions_from_post);
 
+    let get_profile_picture = warp::path("api")
+        .and(warp::path("get"))
+        .and(warp::path("profile-picture"))
+        .and(warp::fs::dir("./media/profile_pictures"));
+
     // let get_posts_from_search = warp::get()
     //     .and(warp::path("api"))
     //     .and(warp::path("get"))
@@ -165,15 +170,15 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(ban_json())
         .and_then(ban_user);
 
-    let get_profile_picture = warp::path("api")
-        .and(warp::path("get"))
-        .and(warp::path("profile-picture"))
-        .and(warp::fs::dir("./media/profile_pictures"));
-
-    let get_background = warp::path("api")
-        .and(warp::path("get"))
-        .and(warp::path("background"))
-        .and(warp::fs::dir("./media/background"));
+    let change_display_name = warp::post()
+        .and(warp::path("api"))
+        .and(warp::path("post"))
+        .and(warp::path("change"))
+        .and(warp::path("display-name"))
+        .and(warp::path::end())
+        .and(display_name_change_json())
+        .and_then(change_display_name);
+    
 
 
     get_posts_by_user
@@ -193,7 +198,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .or(get_reactions_from_post)
         .or(get_profile_by_id)
         .or(get_profile_picture)
-        .or(get_background)
+        .or(change_display_name)
         // .or(get_posts_from_search)
         // .or(get_users_from_search)
 }

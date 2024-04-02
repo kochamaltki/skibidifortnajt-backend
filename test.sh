@@ -38,3 +38,5 @@ echo
 echo
 ./react-curl.sh $ip 1 1 $tok_1
 echo
+./change-displayname.sh $ip nowanazwa $tok_2
+echo

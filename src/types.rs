@@ -80,3 +80,9 @@ pub struct UserBanRequest {
     pub user_id: i64,
     pub token: String
 }
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct DisplayNameChangeRequest {
+    pub new_display_name: String,
+    pub token: String
+}

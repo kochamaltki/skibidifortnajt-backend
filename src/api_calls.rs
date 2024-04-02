@@ -613,6 +613,48 @@ pub async fn ban_user(request: UserBanRequest) -> Result<impl warp::Reply, warp:
     }
 }
 
+
+pub async fn change_display_name(request: DisplayNameChangeRequest) -> Result<impl warp::Reply, warp::Rejection> {
+    let token: TokenData<Claims>;
+    match verify_token::verify_token(request.token) {
+        Ok(val) => {token = val}
+        Err(_) => {
+            let r = "Wrong token";
+            return Ok(warp::reply::with_status(
+                warp::reply::json(&r),
+                warp::http::StatusCode::UNAUTHORIZED,
+            ));
+        }
+    }
+
+
+    let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
+    let id = token.claims.uid;
+
+    if check_user_id(&connection, id).await {
+        let change_query = "UPDATE users SET display_name= ? WHERE user_id = ?";
+        connection.call(move |conn| {
+            let mut statement = conn.prepare(change_query).unwrap();
+            statement.execute(params![request.new_display_name, id]).unwrap();
+            Ok(0)
+        }).await.unwrap();
+
+
+        info!("Display name changed for user with id: {}", token.claims.uid);
+        let r = "Display name change successful";
+        Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::OK,
+        ))
+    } else {
+        let r = "User not found";
+        Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::NOT_FOUND,
+        ))
+    }
+}
+
 pub fn post_json() -> impl Filter<Extract = (PostCreateRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
@@ -638,5 +680,9 @@ pub fn ban_json() -> impl Filter<Extract = (UserBanRequest,), Error = warp::Reje
 }
 
 pub fn react_json() -> impl Filter<Extract = (ReactRequest,), Error = warp::Rejection> + Clone {
+    warp::body::content_length_limit(1024 * 16).and(warp::body::json())
+}
+
+pub fn display_name_change_json() -> impl Filter<Extract = (DisplayNameChangeRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }

@@ -301,10 +301,3 @@ pub async fn add_reaction_db(connection: &Connection, user_id: i64, post_id: i64
     false
 }
 
-// pub async fn search_users(connection: &Connection, user_id: i64, post_id: i64, reaction_type: i64) -> bool {
-    
-// }
-
-// pub async fn search_posts(connection: &Connection, user_id: i64, post_id: i64, reaction_type: i64) -> bool {
-    
-// }

@@ -1,7 +1,7 @@
 # Backend
 ## Docs
 ### Install
- - Install sqlite (sqlite3, libsqlite3-dev packages on debian)
+ - Install sqlite (sqlite3, libsqlite3-dev packages)
  - Install gcc
  - Install rust
  - If you want to use the test scripts, install curl

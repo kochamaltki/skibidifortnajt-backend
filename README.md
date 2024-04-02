@@ -1,7 +1,10 @@
 # Backend
 ## Docs
 ### Install
- - Install sqlite on your system
+ - Install sqlite (sqlite3, libsqlite3-dev packages on debian)
+ - Install gcc
+ - Install rust
+ - If you want to use the test scripts, install curl
 ### Running
  - Before the first deploy, create a file `SECRET` in the root directory, with its content being a base64 secret
  - Run `./deploy.sh` from the root directory

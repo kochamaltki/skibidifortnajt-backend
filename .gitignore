@@ -2,3 +2,7 @@
 Cargo.lock
 projekt-db
 SECRET
+/media/backround/*
+/media/profile_pictures/*
+!/media/backround/default.*
+!/media/profile_pictures/default.*

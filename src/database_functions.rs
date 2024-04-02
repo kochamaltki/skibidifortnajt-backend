@@ -233,7 +233,7 @@ pub async fn add_user_db(connection: &Connection, request: SignupRequest) -> Jso
     let user_id = max_user_id(connection).await.unwrap();
     let user_name = request.user_name.clone();
     
-    let signup_query = "INSERT INTO users VALUES (:user_id, :user_name, :passwd, 0, 0)";
+    let signup_query = "INSERT INTO users VALUES (:user_id, :user_name, :user_name, '', :passwd, 0, 0)";
     connection.call(move |conn| {
         let mut statement = conn.prepare(signup_query).unwrap();
         statement.execute(params![user_id, request.user_name, request.passwd]).unwrap();
@@ -300,3 +300,11 @@ pub async fn add_reaction_db(connection: &Connection, user_id: i64, post_id: i64
     info!("Reaction {} added for post {} by user {}", reaction_type, post_id, user_id);
     false
 }
+
+// pub async fn search_users(connection: &Connection, user_id: i64, post_id: i64, reaction_type: i64) -> bool {
+    
+// }
+
+// pub async fn search_posts(connection: &Connection, user_id: i64, post_id: i64, reaction_type: i64) -> bool {
+    
+// }

@@ -198,6 +198,47 @@ pub async fn get_post_by_id(post_id: i64) -> Result<impl warp::Reply, warp::Reje
     }
 }
 
+pub async fn get_profile_by_id(user_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
+    let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
+    let query = "SELECT user_id, user_name, display_name, description FROM users WHERE user_id = ?";
+
+    if !check_user_id(&connection, user_id).await {
+        let r = "User not found";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::NOT_FOUND
+        ));
+    }
+
+    let profile = connection.call(move |conn| {
+        let mut statement = conn.prepare(query).unwrap();
+        let mut rows = statement.query(params![user_id]).unwrap();
+        let profile: Profile;
+        if let Ok(Some(row)) = rows.next() {
+            profile = Profile {
+                    user_id: row.get(0).unwrap(),
+                    user_name: row.get(1).unwrap(),
+                    display_name: row.get(2).unwrap(),
+                    description: row.get(3).unwrap()
+            };
+        } else {
+            profile = Profile {
+                    user_id: -1,
+                    user_name: "".to_string(),
+                    display_name: "".to_string(),
+                    description: "".to_string()
+            };
+        }
+        Ok(profile)
+    }).await.unwrap();
+
+    Ok(warp::reply::with_status(
+        warp::reply::json(&profile),
+        warp::http::StatusCode::OK
+    ))
+}
+
+
 pub async fn get_user_name(user_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
     let query = "SELECT user_name FROM users WHERE user_id = ?";

@@ -54,4 +54,4 @@ CREATE TABLE reactions(
 --                            |  post_id  | many -|
 --                            -------------
 
-INSERT INTO users VALUES (0, 'root', 'root', 'hala madrid', 'toor', 1, 0);
+INSERT INTO users VALUES (0, 'root', 'gigachadadmin', 'hala madrid', 'toor', 1, 0);

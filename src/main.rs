@@ -165,6 +165,16 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(ban_json())
         .and_then(ban_user);
 
+    let get_profile_picture = warp::path("api")
+        .and(warp::path("get"))
+        .and(warp::path("profile-picture"))
+        .and(warp::fs::dir("./media/profile_pictures"));
+
+    let get_background = warp::path("api")
+        .and(warp::path("get"))
+        .and(warp::path("background"))
+        .and(warp::fs::dir("./media/background"));
+
 
     get_posts_by_user
         .or(post)
@@ -182,6 +192,8 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .or(react)
         .or(get_reactions_from_post)
         .or(get_profile_by_id)
+        .or(get_profile_picture)
+        .or(get_background)
         // .or(get_posts_from_search)
         // .or(get_users_from_search)
 }

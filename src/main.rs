@@ -80,14 +80,14 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path::end())
         .and_then(get_profile_by_id);
 
-    let get_reactions_from_post = warp::get()
+    let get_likes_from_post = warp::get()
         .and(warp::path("api"))
         .and(warp::path("get"))
-        .and(warp::path("reactions"))
+        .and(warp::path("likes"))
         .and(warp::path("from-post"))
         .and(warp::path::param())
         .and(warp::path::end())
-        .and_then(get_reactions_from_post);
+        .and_then(get_likes_from_post);
 
     let get_profile_picture = warp::get()
         .and(warp::path("api"))
@@ -179,8 +179,14 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path::end())
         .and(display_name_change_json())
         .and_then(change_display_name);
-    
 
+    let upload_image = warp::post()
+        .and(warp::path("api"))
+        .and(warp::path("post"))
+        .and(warp::path("upload"))
+        .and(warp::path("image"))
+        .and(warp::multipart::form().max_length(25000000))
+        .and_then(upload_image);
 
     get_posts_by_user
         .or(post)
@@ -196,10 +202,11 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .or(get_posts_by_tag)
         .or(get_tags_from_post)
         .or(react)
-        .or(get_reactions_from_post)
+        .or(get_likes_from_post)
         .or(get_profile_by_id)
         .or(get_profile_picture)
         .or(change_display_name)
+        .or(upload_image)
         // .or(get_posts_from_search)
         // .or(get_users_from_search)
 }
@@ -210,5 +217,4 @@ async fn main() {
     let cors = warp::cors().allow_any_origin();
     let routes = routes().with(cors);
     warp::serve(routes).run(([127, 0, 0, 1], 8000)).await;
-
 }

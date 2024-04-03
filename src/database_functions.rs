@@ -87,9 +87,9 @@ pub async fn purge_data(connection: &Connection, user_id: i64) {
         }).await.unwrap();
     }
     
-    let reactions_delete_query = "DELETE FROM reactions WHERE user_id = ?";
+    let likes_delete_query = "DELETE FROM likes WHERE user_id = ?";
     connection.call(move |conn| {
-        let mut statement = conn.prepare(reactions_delete_query).unwrap();
+        let mut statement = conn.prepare(likes_delete_query).unwrap();
         statement.execute(params![user_id]).unwrap();
         Ok(0)
     }).await.unwrap();
@@ -269,12 +269,12 @@ pub async fn get_id_passwd_adm(connection: &Connection, user: String) -> Result<
     
 }
 
-pub async fn check_reaction(connection: &Connection, user_id: i64, post_id: i64, reaction_type: i64) -> bool {
-    let query = "SELECT post_id FROM reactions WHERE type = ? AND user_id = ? AND post_id = ?";
+pub async fn check_like(connection: &Connection, user_id: i64, post_id: i64, like_type: i64) -> bool {
+    let query = "SELECT post_id FROM likes WHERE post_id = ?";
 
     connection.call(move |conn| {
         let mut statement = conn.prepare(query).unwrap();
-        let mut rows = statement.query(params![reaction_type, user_id, post_id]).unwrap();
+        let mut rows = statement.query(params![like_type, user_id, post_id]).unwrap();
         if let Ok(Some(_)) = rows.next() {
             Ok(true)
         } else {
@@ -283,21 +283,21 @@ pub async fn check_reaction(connection: &Connection, user_id: i64, post_id: i64,
     }).await.unwrap()
 }
 
-pub async fn add_reaction_db(connection: &Connection, user_id: i64, post_id: i64, reaction_type: i64) -> bool {
-    let query = "INSERT INTO reactions VALUES (?, ?, ?)"; 
+pub async fn add_like_db(connection: &Connection, user_id: i64, post_id: i64, like_type: i64) -> bool {
+    let query = "INSERT INTO likes VALUES (?, ?, ?)"; 
 
-    if check_reaction(connection, user_id, post_id, reaction_type).await {
-        info!("Reaction already exists");
+    if check_like(connection, user_id, post_id, like_type).await {
+        info!("Like already exists");
         return true;
     }
 
     connection.call(move |conn| {
         let mut statement = conn.prepare(query).unwrap();
-        statement.execute(params![reaction_type, user_id, post_id]).unwrap();
+        statement.execute(params![like_type, user_id, post_id]).unwrap();
         Ok(0)
     }).await.unwrap();
 
-    info!("Reaction {} added for post {} by user {}", reaction_type, post_id, user_id);
+    info!("Like {} added for post {} by user {}", like_type, post_id, user_id);
     false
 }
 

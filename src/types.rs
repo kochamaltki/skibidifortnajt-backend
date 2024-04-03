@@ -34,8 +34,8 @@ pub struct TagList {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct ReactionCountMap {
-    pub reaction_count_map: HashMap<i64, i64>
+pub struct LikeCountMap {
+    pub like_count_map: HashMap<i64, i64>
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -60,7 +60,7 @@ pub struct PostCreateRequest {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ReactRequest {
     pub post_id: i64,
-    pub reaction_type: i64,
+    pub like_type: i64,
     pub token: String
 }
 

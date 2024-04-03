@@ -2,9 +2,11 @@ use std::collections::HashMap;
 
 use jsonwebtoken::TokenData;
 use tokio_rusqlite::params;
-use tracing::info;
+use tracing::{error, info};
+use warp::filters::multipart::FormData;
 use warp::Filter;
-
+use bytes::BufMut;
+use futures::{StreamExt, TryStreamExt};
 use crate::get_token::get_token;
 use crate::verify_token::{self, Claims};
 use crate::types::*;
@@ -295,8 +297,8 @@ pub async fn get_user_id(user_name: String) -> Result<impl warp::Reply, warp::Re
     ))
 }	
 
-pub async fn get_reactions_from_post(post_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
-    let query = "SELECT type, COUNT(user_id) FROM reactions WHERE post_id = ? GROUP BY type";
+pub async fn get_likes_from_post(post_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
+    let query = "SELECT type, COUNT(user_id) FROM likes WHERE post_id = ? GROUP BY type";
     let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
 
     if !check_post(&connection, post_id).await {
@@ -307,22 +309,22 @@ pub async fn get_reactions_from_post(post_id: i64) -> Result<impl warp::Reply, w
         ));
     }
 
-    let reaction_count_map = connection.call(move |conn| {
+    let like_count_map = connection.call(move |conn| {
         let mut statement = conn.prepare(query).unwrap();
         let mut rows = statement.query(params![post_id]).unwrap();
-        let mut reactions_map: HashMap<i64, i64> = HashMap::new();
+        let mut likes_map: HashMap<i64, i64> = HashMap::new();
         while let Ok(Some(row)) = rows.next() {
-            reactions_map.insert(row.get(0).unwrap(), row.get(1).unwrap());
+            likes_map.insert(row.get(0).unwrap(), row.get(1).unwrap());
         }
-        Ok(reactions_map)
+        Ok(likes_map)
     }).await.unwrap();
 
-    let reactions = ReactionCountMap {
-        reaction_count_map
+    let likes = LikeCountMap {
+        like_count_map
     };
 
     Ok(warp::reply::with_status(
-        warp::reply::json(&reactions), 
+        warp::reply::json(&likes), 
         warp::http::StatusCode::OK
     ))
 }
@@ -413,16 +415,16 @@ pub async fn react(request: ReactRequest) -> Result<impl warp::Reply, warp::Reje
         ));
     }
     
-    let existed = add_reaction_db(&connection, token.claims.uid, request.post_id, request.reaction_type).await;
+    let existed = add_like_db(&connection, token.claims.uid, request.post_id, request.like_type).await;
 
     if existed {
-        let r = "Reaction already exists";
+        let r = "Like already exists";
         Ok(warp::reply::with_status(
             warp::reply::json(&r),
             warp::http::StatusCode::NOT_ACCEPTABLE,
         ))
     } else {
-        let r = "Reaction added";
+        let r = "Like added";
         Ok(warp::reply::with_status(
             warp::reply::json(&r),
             warp::http::StatusCode::OK,
@@ -653,6 +655,50 @@ pub async fn change_display_name(request: DisplayNameChangeRequest) -> Result<im
             warp::http::StatusCode::NOT_FOUND,
         ))
     }
+}
+
+pub async fn upload_image(form: FormData) -> Result<impl warp::Reply, warp::Rejection> {
+    let mut parts = form.into_stream();
+    while let Some(Ok(p)) = parts.next().await {
+        if p.name() == "file" {
+            let content_type = p.content_type();
+            let file_ending;
+            match content_type {
+                Some(file_type) => match file_type {
+                    "image/png" => {
+                        file_ending = "png";
+                    }
+                    v => {
+                        error!("invalid file type found: {}", v);
+                        return Err(warp::reject::reject());
+                    }
+                },
+                None => {
+                    error!("file type could not be determined");
+                    return Err(warp::reject::reject());
+                }
+            }
+            let value = p
+                .stream()
+                .try_fold(Vec::new(), |mut vec, data| {
+                    vec.put(data);
+                    async move { Ok(vec) }
+                })
+                .await
+                .map_err(|e| {
+                    error!("reading file error: {}", e);
+                    warp::reject::reject()
+                })?;
+            let image_uuid = uuid::Uuid::new_v4().to_string();
+            let file_name = format!("./media/images/{}.{}", image_uuid, file_ending);
+            tokio::fs::write(&file_name, value).await.map_err(|e| {
+                error!("error writing file: {}", e);
+                warp::reject::reject()
+            })?;
+            info!("created file: {}", file_name);
+        }
+    }
+    Ok("success")
 }
 
 pub fn post_json() -> impl Filter<Extract = (PostCreateRequest,), Error = warp::Rejection> + Clone {

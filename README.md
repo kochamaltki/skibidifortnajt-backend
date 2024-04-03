@@ -29,9 +29,9 @@
 #### /api/get/user/id/{name}
  - Get: 200 (i64) / 404 ("User not found")
  - Note: Get id of user {name} (-1 if there is no such user)
-#### /api/get/reactions/from-post/{id}
- - Get: 200 (ReactionCountMap) / 404 ("Post not found")
- - Note: Get (reaction, count) map from post {id}
+#### /api/get/likes/from-post/{id}
+ - Get: 200 (LikeCountMap) / 404 ("Post not found")
+ - Note: Get (like, count) map from post {id}
 #### /api/post/add-post
  - Post: PostCreateRequest
  - Effect: Adds a post to the db
@@ -39,8 +39,8 @@
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/post/react
  - Post: ReactRequest
- - Effects: Adds reaction to a post
- - Return: 200 ("Reaction added") / 406 ("Reaction already exists")
+ - Effects: Adds like to a post
+ - Return: 200 ("Like added") / 406 ("Like already exists")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/post/login
  - Post: LoginRequest
@@ -89,8 +89,8 @@ TagList {
 }
 ```
 ```
-ReactionCountMap {
-    reaction_count_map: map(i64, i64)
+LikeCountMap {
+    like_count_map: map(i64, i64)
 }
 ```
 ```
@@ -114,7 +114,7 @@ PostCreateRequest {
 ```
 ReactRequest {
     post_id: i64
-    reaction_type: i64
+    like_type: i64
     token: string
 }
 ```

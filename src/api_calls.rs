@@ -295,8 +295,8 @@ pub async fn get_user_id(user_name: String) -> Result<impl warp::Reply, warp::Re
     ))
 }	
 
-pub async fn get_reactions_from_post(post_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
-    let query = "SELECT type, COUNT(user_id) FROM reactions WHERE post_id = ? GROUP BY type";
+pub async fn get_likes_from_post(post_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
+    let query = "SELECT type, COUNT(user_id) FROM likes WHERE post_id = ? GROUP BY type";
     let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
 
     if !check_post(&connection, post_id).await {
@@ -307,22 +307,22 @@ pub async fn get_reactions_from_post(post_id: i64) -> Result<impl warp::Reply, w
         ));
     }
 
-    let reaction_count_map = connection.call(move |conn| {
+    let like_count_map = connection.call(move |conn| {
         let mut statement = conn.prepare(query).unwrap();
         let mut rows = statement.query(params![post_id]).unwrap();
-        let mut reactions_map: HashMap<i64, i64> = HashMap::new();
+        let mut likes_map: HashMap<i64, i64> = HashMap::new();
         while let Ok(Some(row)) = rows.next() {
-            reactions_map.insert(row.get(0).unwrap(), row.get(1).unwrap());
+            likes_map.insert(row.get(0).unwrap(), row.get(1).unwrap());
         }
-        Ok(reactions_map)
+        Ok(likes_map)
     }).await.unwrap();
 
-    let reactions = ReactionCountMap {
-        reaction_count_map
+    let likes = LikeCountMap {
+        like_count_map
     };
 
     Ok(warp::reply::with_status(
-        warp::reply::json(&reactions), 
+        warp::reply::json(&likes), 
         warp::http::StatusCode::OK
     ))
 }
@@ -413,16 +413,16 @@ pub async fn react(request: ReactRequest) -> Result<impl warp::Reply, warp::Reje
         ));
     }
     
-    let existed = add_reaction_db(&connection, token.claims.uid, request.post_id, request.reaction_type).await;
+    let existed = add_like_db(&connection, token.claims.uid, request.post_id, request.like_type).await;
 
     if existed {
-        let r = "Reaction already exists";
+        let r = "Like already exists";
         Ok(warp::reply::with_status(
             warp::reply::json(&r),
             warp::http::StatusCode::NOT_ACCEPTABLE,
         ))
     } else {
-        let r = "Reaction added";
+        let r = "Like added";
         Ok(warp::reply::with_status(
             warp::reply::json(&r),
             warp::http::StatusCode::OK,

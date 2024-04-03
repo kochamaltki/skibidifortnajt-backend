@@ -25,11 +25,14 @@
  - Note: All tags of post {id}
 #### /api/get/user/name/{id}
  - Get: 200 (string) / 404 ("User not found")
- - Note: Get username of user {id} ("" if there is no such user) 
+ - Note: Get username of user {id} 
 #### /api/get/user/id/{name}
  - Get: 200 (i64) / 404 ("User not found")
- - Note: Get id of user {name} (-1 if there is no such user)
-#### /api/get/likes/from-post/{id}
+ - Note: Get id of user {name} 
+#### /api/get/profile/by-id/{id}
+ - Get: 200 (Profile) / 404 ("User not found")
+ - Note: Get user profile
+ #### /api/get/likes/from-post/{id}
  - Get: 200 (LikeCountMap) / 404 ("Post not found")
  - Note: Get (like, count) map from post {id}
 #### /api/post/add-post
@@ -38,7 +41,7 @@
  - Return: 201 ("Post created") / 401 ("Wrong token" / "User is banned") / 404 ("User not found")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/post/react
- - Post: ReactRequest
+ - Post: LikeRequest
  - Effects: Adds like to a post
  - Return: 200 ("Like added") / 406 ("Like already exists")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
@@ -69,6 +72,14 @@
  - Note: Token must belong to an admin
  - Return: 200 ("Ban succesful") / 401 ("User is not admin" / "Wrong token") / 404 ("User not found")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
+#### /api/post/change/display-name
+ - Post: DisplayNameChangeRequest
+ - Effect: User's display name changes
+ - Return: 200 ("Ban succesful") / 401 ("Wrong token") / 404 ("User not found")
+ - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
+#### /api/post/change/upload/image
+ - Post: Image (max 25MB)
+ - ALPHA FEATURE DO NOT USE
 ### Types
 ```
 Post {
@@ -76,6 +87,15 @@ Post {
     user_id: i64
     date: i64
     body: string (max 2048 chars)
+    likes: i64
+}
+```
+```
+Profile {
+    user_id: i64
+    user_name: string (max 64 chars)
+    display_name: string (max 64 chars)
+    description: string (max 2048 chars)
 }
 ```
 ```
@@ -89,8 +109,8 @@ TagList {
 }
 ```
 ```
-LikeCountMap {
-    like_count_map: map(i64, i64)
+LikeCount {
+    like_count: i64
 }
 ```
 ```
@@ -108,13 +128,13 @@ SignupRequest {
 ```
 PostCreateRequest {
     body: string (max 2048 chars)
+    tags: Vec<string (max 64 chars)>
     token: string
 }
 ```
 ```
-ReactRequest {
+LikeRequest {
     post_id: i64
-    like_type: i64
     token: string
 }
 ```
@@ -132,6 +152,12 @@ UserUpgradeRequest {
 ```
 UserBanRequest {
     user_id: i64
+    token: string
+}
+```
+```
+DisplayNameChangeRequest {
+    new_display_name: string (max 64 chars)
     token: string
 }
 ```

@@ -77,7 +77,7 @@
  - Effect: User's display name changes
  - Return: 200 ("Ban succesful") / 401 ("Wrong token") / 404 ("User not found")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
-#### /api/post/change/upload/image
+#### /api/post/upload/image
  - Post: Image (max 25MB)
  - ALPHA FEATURE DO NOT USE
 ### Types

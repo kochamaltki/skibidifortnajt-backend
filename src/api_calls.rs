@@ -2,9 +2,11 @@ use std::collections::HashMap;
 
 use jsonwebtoken::TokenData;
 use tokio_rusqlite::params;
-use tracing::info;
+use tracing::{error, info};
+use warp::filters::multipart::FormData;
 use warp::Filter;
-
+use bytes::BufMut;
+use futures::{StreamExt, TryStreamExt};
 use crate::get_token::get_token;
 use crate::verify_token::{self, Claims};
 use crate::types::*;
@@ -653,6 +655,50 @@ pub async fn change_display_name(request: DisplayNameChangeRequest) -> Result<im
             warp::http::StatusCode::NOT_FOUND,
         ))
     }
+}
+
+pub async fn upload_image(form: FormData) -> Result<impl warp::Reply, warp::Rejection> {
+    let mut parts = form.into_stream();
+    while let Some(Ok(p)) = parts.next().await {
+        if p.name() == "file" {
+            let content_type = p.content_type();
+            let file_ending;
+            match content_type {
+                Some(file_type) => match file_type {
+                    "image/png" => {
+                        file_ending = "png";
+                    }
+                    v => {
+                        error!("invalid file type found: {}", v);
+                        return Err(warp::reject::reject());
+                    }
+                },
+                None => {
+                    error!("file type could not be determined");
+                    return Err(warp::reject::reject());
+                }
+            }
+            let value = p
+                .stream()
+                .try_fold(Vec::new(), |mut vec, data| {
+                    vec.put(data);
+                    async move { Ok(vec) }
+                })
+                .await
+                .map_err(|e| {
+                    error!("reading file error: {}", e);
+                    warp::reject::reject()
+                })?;
+            let image_uuid = uuid::Uuid::new_v4().to_string();
+            let file_name = format!("./media/images/{}.{}", image_uuid, file_ending);
+            tokio::fs::write(&file_name, value).await.map_err(|e| {
+                error!("error writing file: {}", e);
+                warp::reject::reject()
+            })?;
+            info!("created file: {}", file_name);
+        }
+    }
+    Ok("success")
 }
 
 pub fn post_json() -> impl Filter<Extract = (PostCreateRequest,), Error = warp::Rejection> + Clone {

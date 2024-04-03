@@ -34,7 +34,8 @@ pub async fn get_posts_by_user(user_id: i64) -> Result<impl warp::Reply, warp::R
                     post_id: row.get(0).unwrap(),
                     user_id: row.get(1).unwrap(),
                     date: row.get(2).unwrap(),
-                    body: row.get(3).unwrap()
+                    body: row.get(3).unwrap(),
+                    likes: row.get(4).unwrap()
                 }
             );
         }
@@ -81,8 +82,10 @@ pub async fn get_posts_by_tag(tag: String) -> Result<impl warp::Reply, warp::Rej
                     post_id: row.get(0).unwrap(),
                     user_id: row.get(1).unwrap(),
                     date: row.get(2).unwrap(),
-                    body: row.get(3).unwrap()
+                    body: row.get(3).unwrap(),
+                    likes: row.get(4).unwrap()
                 }
+
             );
         }
         Ok(post_vec)
@@ -109,7 +112,8 @@ pub async fn get_posts() -> Result<impl warp::Reply, warp::Rejection> {
                     post_id: row.get(0).unwrap(),
                     user_id: row.get(1).unwrap(),
                     date: row.get(2).unwrap(),
-                    body: row.get(3).unwrap()
+                    body: row.get(3).unwrap(),
+                    likes: row.get(4).unwrap()
                 }
             );
         }
@@ -169,18 +173,20 @@ pub async fn get_post_by_id(post_id: i64) -> Result<impl warp::Reply, warp::Reje
         let mut rows = statement.query(params![post_id]).unwrap(); 
         let post: Post;
         if let Ok(Some(row)) = rows.next() {
-            post = Post {
-                    post_id: row.get(0).unwrap(),
-                    user_id: row.get(1).unwrap(),
-                    date: row.get(2).unwrap(),
-                    body: row.get(3).unwrap()
-            };
+            post =  Post {
+            post_id: row.get(0).unwrap(),
+            user_id: row.get(1).unwrap(),
+            date: row.get(2).unwrap(),
+            body: row.get(3).unwrap(),
+            likes: row.get(4).unwrap()
+        };
         } else {
             post = Post {
-                    post_id: -1,
-                    user_id: -1,
-                    date: -1,
-                    body: "".to_string()
+                post_id: -1,
+                user_id: 0,
+                date: 0,
+                body: "".to_string(),
+                likes: 0
             };
         }
         Ok(post)
@@ -297,38 +303,6 @@ pub async fn get_user_id(user_name: String) -> Result<impl warp::Reply, warp::Re
     ))
 }	
 
-pub async fn get_likes_from_post(post_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
-    let query = "SELECT type, COUNT(user_id) FROM likes WHERE post_id = ? GROUP BY type";
-    let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
-
-    if !check_post(&connection, post_id).await {
-        let r = "Post not found";
-        return Ok(warp::reply::with_status(
-            warp::reply::json(&r),
-            warp::http::StatusCode::NOT_FOUND
-        ));
-    }
-
-    let like_count_map = connection.call(move |conn| {
-        let mut statement = conn.prepare(query).unwrap();
-        let mut rows = statement.query(params![post_id]).unwrap();
-        let mut likes_map: HashMap<i64, i64> = HashMap::new();
-        while let Ok(Some(row)) = rows.next() {
-            likes_map.insert(row.get(0).unwrap(), row.get(1).unwrap());
-        }
-        Ok(likes_map)
-    }).await.unwrap();
-
-    let likes = LikeCountMap {
-        like_count_map
-    };
-
-    Ok(warp::reply::with_status(
-        warp::reply::json(&likes), 
-        warp::http::StatusCode::OK
-    ))
-}
-
 pub async fn post(request: PostCreateRequest) -> Result<impl warp::Reply, warp::Rejection> {
     let token: TokenData<Claims>;
     match verify_token::verify_token(request.token) {
@@ -370,7 +344,8 @@ pub async fn post(request: PostCreateRequest) -> Result<impl warp::Reply, warp::
             post_id: post_count,
             user_id: id, 
             date: -1,
-            body: request.body
+            body: request.body,
+            likes: 0
         },
         request.tags
     ).await;
@@ -382,7 +357,7 @@ pub async fn post(request: PostCreateRequest) -> Result<impl warp::Reply, warp::
     ))
 }
 
-pub async fn react(request: ReactRequest) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn react(request: LikeRequest) -> Result<impl warp::Reply, warp::Rejection> {
     let token: TokenData<Claims>;
     match verify_token::verify_token(request.token) {
         Ok(val) => {token = val}
@@ -415,7 +390,7 @@ pub async fn react(request: ReactRequest) -> Result<impl warp::Reply, warp::Reje
         ));
     }
     
-    let existed = add_like_db(&connection, token.claims.uid, request.post_id, request.like_type).await;
+    let existed = add_like_db(&connection, token.claims.uid, request.post_id).await;
 
     if existed {
         let r = "Like already exists";
@@ -725,7 +700,7 @@ pub fn ban_json() -> impl Filter<Extract = (UserBanRequest,), Error = warp::Reje
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
 
-pub fn react_json() -> impl Filter<Extract = (ReactRequest,), Error = warp::Rejection> + Clone {
+pub fn react_json() -> impl Filter<Extract = (LikeRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
 

@@ -87,6 +87,27 @@ pub async fn purge_data(connection: &Connection, user_id: i64) {
         }).await.unwrap();
     }
     
+    let find_posts_query = "SELECT post_id FROM likes WHERE user_id = ?";
+    let like_post_ids = connection.call(move |conn| {
+        let mut statement = conn.prepare(find_posts_query).unwrap();
+        let mut rows = statement.query(params![user_id]).unwrap();
+        let mut post_id_vec: Vec<i64> = Vec::new();
+        while let Ok(Some(row)) = rows.next() {
+            post_id_vec.push(row.get(0).unwrap());
+        }
+        Ok(post_id_vec)
+    }).await.unwrap();
+
+    let post_like_delete_query = "UPDATE posts SET likes=likes-1 WHERE post_id = ?";
+    for post_id in like_post_ids.iter() {
+        let post_id = *post_id;
+        connection.call(move |conn| {
+            let mut statement = conn.prepare(post_like_delete_query).unwrap();
+            statement.execute(params![post_id]).unwrap();
+            Ok(0)
+        }).await.unwrap();
+    };
+    
     let likes_delete_query = "DELETE FROM likes WHERE user_id = ?";
     connection.call(move |conn| {
         let mut statement = conn.prepare(likes_delete_query).unwrap();
@@ -203,10 +224,10 @@ pub async fn add_tag_db(connection: &Connection, name: String) -> i64 {
 pub async fn add_post_db(connection: &Connection, post: Post, tags: Vec<String>) {
     let time_since_epoch: i64 = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64;
 
-    let query = "INSERT INTO posts VALUES (?, ?, ?, ?)";
+    let query = "INSERT INTO posts VALUES (?, ?, ?, ?, ?)";
     connection.call(move |conn| {
         let mut statement = conn.prepare(query).unwrap();
-        statement.execute(params![post.post_id, post.user_id, time_since_epoch, post.body]).unwrap();
+        statement.execute(params![post.post_id, post.user_id, time_since_epoch, post.body, 0]).unwrap();
         Ok(0)
     }).await.unwrap();
 
@@ -269,12 +290,12 @@ pub async fn get_id_passwd_adm(connection: &Connection, user: String) -> Result<
     
 }
 
-pub async fn check_like(connection: &Connection, user_id: i64, post_id: i64, like_type: i64) -> bool {
-    let query = "SELECT post_id FROM likes WHERE post_id = ?";
+pub async fn check_like(connection: &Connection, user_id: i64, post_id: i64) -> bool {
+    let query = "SELECT post_id FROM likes WHERE post_id = ? AND user_id = ?";
 
     connection.call(move |conn| {
         let mut statement = conn.prepare(query).unwrap();
-        let mut rows = statement.query(params![like_type, user_id, post_id]).unwrap();
+        let mut rows = statement.query(params![post_id, user_id]).unwrap();
         if let Ok(Some(_)) = rows.next() {
             Ok(true)
         } else {
@@ -283,21 +304,27 @@ pub async fn check_like(connection: &Connection, user_id: i64, post_id: i64, lik
     }).await.unwrap()
 }
 
-pub async fn add_like_db(connection: &Connection, user_id: i64, post_id: i64, like_type: i64) -> bool {
-    let query = "INSERT INTO likes VALUES (?, ?, ?)"; 
+pub async fn add_like_db(connection: &Connection, user_id: i64, post_id: i64) -> bool {
+    let query = "INSERT INTO likes VALUES (?, ?)"; 
+    let update_query = "UPDATE posts SET likes=likes+1 WHERE post_id = ?";
 
-    if check_like(connection, user_id, post_id, like_type).await {
+    if check_like(connection, user_id, post_id).await {
         info!("Like already exists");
         return true;
     }
 
     connection.call(move |conn| {
         let mut statement = conn.prepare(query).unwrap();
-        statement.execute(params![like_type, user_id, post_id]).unwrap();
+        statement.execute(params![user_id, post_id]).unwrap();
+        Ok(0)
+    }).await.unwrap();
+    
+    connection.call(move |conn| {
+        let mut statement = conn.prepare(update_query).unwrap();
+        statement.execute(params![post_id]).unwrap();
         Ok(0)
     }).await.unwrap();
 
-    info!("Like {} added for post {} by user {}", like_type, post_id, user_id);
+    info!("Like added for post {} by user {}", post_id, user_id);
     false
 }
-

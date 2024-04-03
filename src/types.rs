@@ -8,6 +8,7 @@ pub struct Post {
     pub user_id: i64,
     pub date: i64,
     pub body: String,
+    pub likes: i64
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -34,8 +35,8 @@ pub struct TagList {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct LikeCountMap {
-    pub like_count_map: HashMap<i64, i64>
+pub struct LikeCount {
+    pub like_count: i64
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -58,9 +59,8 @@ pub struct PostCreateRequest {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct ReactRequest {
+pub struct LikeRequest {
     pub post_id: i64,
-    pub like_type: i64,
     pub token: String
 }
 

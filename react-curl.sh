@@ -7,6 +7,5 @@ curl --location --request POST "$path" \
 --header 'Content-Type: text/plain' \
 --data-raw '{
         "post_id": '$2',
-		"reaction_type": '$3',
-        "token": "'"$4"'"
+        "token": "'"$3"'"
 }'

@@ -10,7 +10,8 @@ CREATE TABLE posts(
 	post_id INTEGER PRIMARY KEY NOT NULL,
 	user_id INTEGER NOT NULL,
 	date BIGINT NOT NULL,
-	body VARCHAR(2048) NOT NULL
+	body VARCHAR(2048) NOT NULL,
+	likes INTEGER NOT NULL
 );
 
 CREATE TABLE posts_tags(
@@ -55,8 +56,8 @@ CREATE TABLE images(
 --   |  user_name   |    |-------------------------+- many | user_id |   |       |   tag_id   | many -|    | tag_name |
 --   | display_name |    |                         |       |  date   |   |       --------------            ------------
 --   | description  |    |                         |       |  body   |   |
---   |    passwd    |    |                         |       -----------   |       ----------------            --------------
---   |   is_admin   |    |                         |                     |       | posts_images |            |   images   |
+--   |    passwd    |    |                         |       |  likes  |   |       ----------------            --------------
+--   |   is_admin   |    |                         |       -----------   |       | posts_images |            |   images   |
 --   |  is_banned   |    |                         |                     |       ----------------            --------------
 --   ----------------    |                         |                     |- many |   post_id    |       |- 1 |  image_id  |
 --                       |       -----------       |                             |   image_id   | many -|    | image_uuid |

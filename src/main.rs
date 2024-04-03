@@ -89,7 +89,8 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path::end())
         .and_then(get_reactions_from_post);
 
-    let get_profile_picture = warp::path("api")
+    let get_profile_picture = warp::get()
+        .and(warp::path("api"))
         .and(warp::path("get"))
         .and(warp::path("profile-picture"))
         .and(warp::fs::dir("./media/profile_pictures"));

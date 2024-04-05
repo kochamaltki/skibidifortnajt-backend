@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use jsonwebtoken::TokenData;
 use tokio_rusqlite::params;
 use tracing::{error, info};
@@ -633,6 +631,7 @@ pub async fn change_display_name(request: DisplayNameChangeRequest) -> Result<im
 }
 
 pub async fn upload_image(form: FormData) -> Result<impl warp::Reply, warp::Rejection> {
+    let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
     let mut parts = form.into_stream();
     while let Some(Ok(p)) = parts.next().await {
         if p.name() == "file" {
@@ -643,14 +642,20 @@ pub async fn upload_image(form: FormData) -> Result<impl warp::Reply, warp::Reje
                     "image/png" => {
                         file_ending = "png";
                     }
-                    v => {
-                        error!("invalid file type found: {}", v);
-                        return Err(warp::reject::reject());
+                    _ => {
+                        let r = "Invalid image format";
+                        return Ok(warp::reply::with_status(
+                            warp::reply::json(&r),
+                            warp::http::StatusCode::FORBIDDEN,
+                        ));
                     }
                 },
                 None => {
-                    error!("file type could not be determined");
-                    return Err(warp::reject::reject());
+                    let r = "file type error";
+                    return Ok(warp::reply::with_status(
+                        warp::reply::json(&r),
+                        warp::http::StatusCode::FORBIDDEN,
+                    ));
                 }
             }
             let value = p
@@ -658,22 +663,41 @@ pub async fn upload_image(form: FormData) -> Result<impl warp::Reply, warp::Reje
                 .try_fold(Vec::new(), |mut vec, data| {
                     vec.put(data);
                     async move { Ok(vec) }
-                })
-                .await
-                .map_err(|e| {
-                    error!("reading file error: {}", e);
-                    warp::reject::reject()
-                })?;
+                }).await;
+            let value = match value {
+                Ok(val) => {val},
+                Err(_) => {
+                    let r = "file read error";
+                    return Ok(warp::reply::with_status(
+                        warp::reply::json(&r),
+                        warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    ));
+                }
+            };
             let image_uuid = uuid::Uuid::new_v4().to_string();
             let file_name = format!("./media/images/{}.{}", image_uuid, file_ending);
-            tokio::fs::write(&file_name, value).await.map_err(|e| {
-                error!("error writing file: {}", e);
-                warp::reject::reject()
-            })?;
-            info!("created file: {}", file_name);
+            match add_image_db(&connection, image_uuid).await {
+                Ok(_) => {
+                    tokio::fs::write(&file_name, value).await.map_err(|e| {
+                        error!("error writing file: {}", e);
+                        warp::reject::reject()
+                    })?;
+                    info!("created file: {}", file_name);
+                },
+                Err(val) => {
+                    return Ok(warp::reply::with_status(
+                        warp::reply::json(&val),
+                        warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    ));
+                }
+            }
         }
     }
-    Ok("success")
+    let r = "Image uploaded succesfully";
+    Ok(warp::reply::with_status(
+        warp::reply::json(&r),
+        warp::http::StatusCode::OK,
+    ))
 }
 
 pub fn post_json() -> impl Filter<Extract = (PostCreateRequest,), Error = warp::Rejection> + Clone {

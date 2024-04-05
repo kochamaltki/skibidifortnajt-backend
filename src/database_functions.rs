@@ -328,3 +328,34 @@ pub async fn add_like_db(connection: &Connection, user_id: i64, post_id: i64) ->
     info!("Like added for post {} by user {}", post_id, user_id);
     false
 }
+
+pub async fn max_image_id(connection: &Connection) -> i64 {
+    let query = "SELECT MAX(image_id) FROM images";
+    connection.call(move |conn| {
+        let mut statement = conn.prepare(query).unwrap();
+        let mut rows = statement.query(params![]).unwrap();
+        if let Some(val) = rows.next().unwrap() {
+            let ret = match val.get::<_, i64>(0) {
+                Ok(val) => {val + 1},
+                Err(_) => {-1}
+            };
+            Ok(ret)
+        } else {
+            Ok(-1)
+        }
+    }).await.unwrap()
+}
+
+pub async fn add_image_db(connection: &Connection, image_file: String) -> Result<(), &str> {
+    let image_query = "INSERT INTO images VALUES (?, ?)";
+
+    let image_count = max_image_id(connection).await;
+
+    connection.call(move |conn| {
+        let mut statement = conn.prepare(image_query).unwrap();
+        statement.execute(params![image_count, image_file]).unwrap();
+        Ok(0)
+    }).await.unwrap();
+    
+    Ok(())
+}

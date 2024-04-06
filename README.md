@@ -86,6 +86,11 @@
  - Post: Image (max 25MB)
  - Return: 200 (image-id) / 400 ("Invalid image format" / "File type error" / ) / 500 ("File read error")
  - Headers: 'Content-Type: multipart/form-data'
+#### /api/post/add-image-to-post
+ - Post: AddImageToPostRequest
+ - Effect: Image is added to post
+ - Return: 200 ("Image added to post") / 400 ("Image already added to this post") / 401 ("Wrong token" / "User not authorized") / 404 ("Image not found" / "Post not found")
+ - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 ### Types
 ```
 Post {

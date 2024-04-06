@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -32,6 +30,11 @@ pub struct ProfileList {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TagList {
     pub tag_list: Vec<String>
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ImageList {
+    pub image_list: Vec<String>
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -85,4 +88,11 @@ pub struct UserBanRequest {
 pub struct DisplayNameChangeRequest {
     pub new_display_name: String,
     pub token: String
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AddImageToPostRequest {
+    pub token: String,
+    pub image_id: i64,
+    pub post_id: i64
 }

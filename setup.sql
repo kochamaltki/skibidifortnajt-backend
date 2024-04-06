@@ -45,8 +45,8 @@ CREATE TABLE posts_images(
 );
 
 CREATE TABLE images(
-	image_id INTEGER NOT NULL,
-	image_uuid VARCHAR(34) NOT NULL
+	image_id INTEGER PRIMARY KEY NOT NULL,
+	image_file VARCHAR(64) NOT NULL
 );
 
 --   ----------------                                      -----------           --------------            ____________
@@ -60,7 +60,7 @@ CREATE TABLE images(
 --   |   is_admin   |    |                         |       -----------   |       | posts_images |            |   images   |
 --   |  is_banned   |    |                         |                     |       ----------------            --------------
 --   ----------------    |                         |                     |- many |   post_id    |       |- 1 |  image_id  |
---                       |       -----------       |                             |   image_id   | many -|    | image_uuid |
+--                       |       -----------       |                             |   image_id   | many -|    | image_file |
 --                       |       |  likes  |       |                             ----------------            --------------
 --                       |       -----------       |
 --                       |- many | user_id |       | 

@@ -33,6 +33,11 @@ pub struct TagList {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ImageList {
+    pub image_list: Vec<String>
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct LikeCount {
     pub like_count: i64
 }
@@ -83,4 +88,11 @@ pub struct UserBanRequest {
 pub struct DisplayNameChangeRequest {
     pub new_display_name: String,
     pub token: String
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AddImageToPostRequest {
+    pub token: String,
+    pub image_id: i64,
+    pub post_id: i64
 }

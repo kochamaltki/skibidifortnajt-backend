@@ -46,7 +46,7 @@ CREATE TABLE posts_images(
 
 CREATE TABLE images(
 	image_id INTEGER PRIMARY KEY NOT NULL,
-	image_file VARCHAR(34) NOT NULL
+	image_file VARCHAR(64) NOT NULL
 );
 
 --   ----------------                                      -----------           --------------            ____________

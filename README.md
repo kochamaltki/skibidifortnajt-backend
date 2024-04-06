@@ -33,8 +33,13 @@
  - Get: 200 (Profile) / 404 ("User not found")
  - Note: Get user profile
  #### /api/get/likes/from-post/{id}
- - Get: 200 (LikeCountMap) / 404 ("Post not found")
+ - Get: 200 (LikeCount) / 404 ("Post not found")
  - Note: Get (like, count) map from post {id}
+ #### /api/get/images/from-post/{id}
+ - Get: 200 (ImageList) / 404 ("Post not found")
+ - Note: Get a list of image names used to acces them via the call below
+ #### /api/get/image/{image-name}
+ - Get: Image
 #### /api/post/add-post
  - Post: PostCreateRequest
  - Effect: Adds a post to the db
@@ -79,7 +84,8 @@
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/post/upload/image
  - Post: Image (max 25MB)
- - ALPHA FEATURE DO NOT USE
+ - Return: 200 (image-id) / 400 ("Invalid image format" / "File type error" / ) / 500 ("File read error")
+ - Headers: 'Content-Type: multipart/form-data'
 ### Types
 ```
 Post {
@@ -106,6 +112,11 @@ PostList {
 ```
 TagList {
     tag_list: Vec<string (max 64 chars)>
+}
+```
+```
+ImageList {
+    image_list: Vec<string (max 64 chars)>
 }
 ```
 ```
@@ -159,5 +170,12 @@ UserBanRequest {
 DisplayNameChangeRequest {
     new_display_name: string (max 64 chars)
     token: string
+}
+```
+```
+AddImageToPostRequest {
+    token: string,
+    image_id: i64,
+    post_id: i64
 }
 ```

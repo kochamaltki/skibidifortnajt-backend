@@ -45,6 +45,33 @@ pub async fn check_post(connection: &Connection, id: i64) -> bool {
     }).await.unwrap()
 }
 
+pub async fn check_image(connection: &Connection, id: i64) -> bool {
+    let query = "SELECT image_id FROM images WHERE image_id = ?";
+    connection.call(move |conn| {
+        let mut statement = conn.prepare(query).unwrap();
+        let mut rows = statement.query([id]).unwrap();
+        if let Some(_) = rows.next().unwrap() {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }).await.unwrap()
+}
+
+pub async fn check_post_image(connection: &Connection, image_id: i64, post_id: i64) -> bool {
+    let query = "SELECT image_id FROM posts_images WHERE image_id = ? AND post_id = ?";
+    connection.call(move |conn| {
+        let mut statement = conn.prepare(query).unwrap();
+        let mut rows = statement.query([image_id, post_id]).unwrap();
+        if let Some(_) = rows.next().unwrap() {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }).await.unwrap()
+}
+
+
 pub async fn check_banned(connection: &Connection, user_id: i64) -> bool {
     let query = "SELECT is_banned FROM users WHERE user_id = ?";
 
@@ -201,6 +228,19 @@ pub async fn get_tag_by_name(connection: &Connection, name: String) -> Result<i6
     }).await.unwrap()
 }
 
+pub async fn get_user_from_post(connection: &Connection, id: i64) -> i64 {
+    let query = "SELECT user_id FROM posts WHERE post_id = ?";
+    connection.call(move |conn| {
+        let mut statement = conn.prepare(query).unwrap();
+        let mut rows = statement.query([id]).unwrap();
+        if let Some(val) = rows.next().unwrap() {
+            Ok(val.get(0).unwrap())
+        } else {
+            Ok(-1)
+        }
+    }).await.unwrap()
+}
+
 pub async fn add_post_tag_db(connection: &Connection, post_id: i64, tag_id: i64) {
     let query = "INSERT INTO posts_tags VALUES (?, ?)";
     connection.call(move |conn| {
@@ -337,16 +377,16 @@ pub async fn max_image_id(connection: &Connection) -> i64 {
         if let Some(val) = rows.next().unwrap() {
             let ret = match val.get::<_, i64>(0) {
                 Ok(val) => {val + 1},
-                Err(_) => {-1}
+                Err(_) => {0}
             };
             Ok(ret)
         } else {
-            Ok(-1)
+            Ok(0)
         }
     }).await.unwrap()
 }
 
-pub async fn add_image_db(connection: &Connection, image_file: String) -> Result<(), &str> {
+pub async fn add_image_db(connection: &Connection, image_file: String) -> Result<i64, &str> {
     let image_query = "INSERT INTO images VALUES (?, ?)";
 
     let image_count = max_image_id(connection).await;
@@ -354,6 +394,22 @@ pub async fn add_image_db(connection: &Connection, image_file: String) -> Result
     connection.call(move |conn| {
         let mut statement = conn.prepare(image_query).unwrap();
         statement.execute(params![image_count, image_file]).unwrap();
+        Ok(0)
+    }).await.unwrap();
+    
+    Ok(image_count)
+}
+
+pub async fn assign_image_to_post_db(connection: &Connection, post_id: i64, image_id: i64) -> Result<(), &str> {
+    if check_post_image(connection, image_id, post_id).await {
+        return Err("Image already added to this post");
+    }
+
+    let image_query = "INSERT INTO posts_images VALUES (?, ?)";
+
+    connection.call(move |conn| {
+        let mut statement = conn.prepare(image_query).unwrap();
+        statement.execute(params![post_id, image_id]).unwrap();
         Ok(0)
     }).await.unwrap();
     

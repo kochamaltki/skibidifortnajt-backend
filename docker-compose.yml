@@ -4,10 +4,16 @@ services:
   backend:
     image: backend:latest
     container_name: backend
-    ports:
-      - "8000:8000"
+    restart: always
+    networks:
+      - default
     environment:
       - PUID=1000
       - PGID=1000
     volumes:
       - ./media:/usr/src/backend/media
+
+networks:
+  default:
+    external: true
+    name: main

@@ -4,10 +4,13 @@
  - Install sqlite (sqlite3, libsqlite3-dev packages)
  - Install gcc
  - Install rust
+ - Install docker, docker compose (optional)
  - If you want to use the test scripts, install curl
+ - Create media/image, media/profile_pictures
 ### Running
  - Before the first deploy, create a file `SECRET` in the root directory, with its content being a base64 secret
  - Run `./deploy.sh` from the root directory
+ - Or run `docker compose up` from the root directory
 ### Acces points
 #### /api/get/posts/by-user/{id}
  - Get: 200 (PostList) / 404 ("User not found")

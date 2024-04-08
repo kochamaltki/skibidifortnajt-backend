@@ -10,7 +10,7 @@
 ### Running
  - Before the first deploy, create a file `SECRET` in the root directory, with its content being a base64 secret
  - Run `./deploy.sh` from the root directory
- - Or run `docker compose up` from the root directory
+ - Docker: First `docker build -t backend .` and run `docker compose up` from the root directory
 ### Acces points
 #### /api/get/posts/by-user/{id}
  - Get: 200 (PostList) / 404 ("User not found")

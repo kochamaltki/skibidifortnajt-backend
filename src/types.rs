@@ -81,6 +81,10 @@ pub struct UserUpgradeRequest {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct UserBanRequest {
     pub user_id: i64,
+    pub given_on: i64,
+    pub expires_on: i64,
+    pub ban_message: String,
+    
     pub token: String
 }
 

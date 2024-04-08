@@ -641,13 +641,13 @@ pub async fn ban_user(request: UserBanRequest) -> Result<impl warp::Reply, warp:
         .await
         .unwrap();
     let id = request.user_id;
-
+    let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH);
     if check_user_id(&connection, id).await {
-        let ban_query = "UPDATE users SET is_banned=1 WHERE user_id = ?";
+        let ban_query = "INSERT INTO bans VALUES (?, ?, ?, ?, ?)";
         connection
             .call(move |conn| {
                 let mut statement = conn.prepare(ban_query).unwrap();
-                statement.execute(params![id]).unwrap();
+                statement.execute(params![id, timestamp]).unwrap();
                 Ok(0)
             })
             .await

@@ -5,6 +5,8 @@ DROP TABLE IF EXISTS tags;
 DROP TABLE IF EXISTS likes;
 DROP TABLE IF EXISTS images;
 DROP TABLE IF EXISTS posts_images;
+DROP TABLE IF EXISTS bans;
+
 
 CREATE TABLE posts(
 	post_id INTEGER PRIMARY KEY NOT NULL,
@@ -31,7 +33,6 @@ CREATE TABLE users(
 	description VARCHAR(2048) NOT NULL,
 	passwd VARCHAR(128) NOT NULL,
 	is_admin INTEGER NOT NULL,
-	is_banned INTEGER NOT NULL
 );
 
 CREATE TABLE likes(
@@ -47,6 +48,14 @@ CREATE TABLE posts_images(
 CREATE TABLE images(
 	image_id INTEGER PRIMARY KEY NOT NULL,
 	image_file VARCHAR(64) NOT NULL
+);
+
+CREATE TABLE bans(
+	user_id INTEGER NOT NULL,
+	given_on INTEGER NOT NULL,
+	expires_on INTEGER NOT NULL,
+	ban_message VARCHAR(2048) NOT NULL,
+	is_active INTEGER NOT NULL
 );
 
 --   ----------------                                      -----------           --------------            ____________

@@ -13,3 +13,6 @@ tok_2=${token_2:1:-1}
 echo
 ./login.sh $ip abc abc
 echo
+./unban.sh $ip 1 $tok_0
+./login.sh $ip abc abc
+echo

@@ -78,14 +78,14 @@ pub async fn check_banned(connection: &Connection, user_id: i64) -> bool {
     if !check_user_id(connection, user_id).await {
         return true;
     }
-
+    let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64;
     let is_banned = connection.call(move |conn| {
         let mut statement = conn.prepare(query).unwrap();
         let mut rows = statement.query(params![user_id]).unwrap();
         if let Ok(Some(row)) = rows.next() {
-            Ok(row.get::<_, i64>(0).unwrap() != 0)              // do zmiany
+            Ok(row.get::<_, i64>(1).unwrap() != 0 && row.get::<_, i64>(0).unwrap() < timestamp)
         } else {
-            Ok(true)
+            Ok(false)
         }
     }).await.unwrap();
 

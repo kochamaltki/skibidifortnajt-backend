@@ -617,7 +617,7 @@ pub async fn upgrade_user(
     }
 }
 
-pub async fn ban_user(request: UserBanRequest) -> Result<impl warp::Reply, warp::Rejection> { // do zmiany
+pub async fn ban_user(request: UserBanRequest) -> Result<impl warp::Reply, warp::Rejection> {
     let token: TokenData<Claims>;
     match verify_token::verify_token(request.token) {
         Ok(val) => token = val,

@@ -519,6 +519,15 @@ pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Reje
 
     match get_id_passwd_adm(&connection, name.clone()).await {
         Ok((user_id, passwd, is_admin)) => {
+            if check_banned(&connection, user_id).await == true {
+                info!("Can't log in user {}, reason - ban", user_id);
+                let r = "Your account is banned";
+                return Ok(warp::reply::with_status(
+                    warp::reply::json(&r),
+                    warp::http::StatusCode::UNAUTHORIZED,
+                ));
+            };
+
             if passwd == request.passwd {
                 info!("User {} logged in", name);
                 Ok(warp::reply::with_status(

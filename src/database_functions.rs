@@ -73,7 +73,7 @@ pub async fn check_post_image(connection: &Connection, image_id: i64, post_id: i
 
 
 pub async fn check_banned(connection: &Connection, user_id: i64) -> bool {
-    let query = "SELECT expires_on, is_active FROM bans WHERE user_id = ? ORDER BY given_on DESC LIMIT 1";
+    let query = "SELECT is_active, expires_on FROM bans WHERE user_id = ? ORDER BY given_on DESC LIMIT 1";
 
     if !check_user_id(connection, user_id).await {
         return true;
@@ -83,7 +83,7 @@ pub async fn check_banned(connection: &Connection, user_id: i64) -> bool {
         let mut statement = conn.prepare(query).unwrap();
         let mut rows = statement.query(params![user_id]).unwrap();
         if let Ok(Some(row)) = rows.next() {
-            Ok(row.get::<_, i64>(1).unwrap() != 0 && row.get::<_, i64>(0).unwrap() < timestamp)
+            Ok(row.get::<_, i64>(0).unwrap() == 1 && row.get::<_, i64>(1).unwrap() > timestamp)
         } else {
             Ok(false)
         }

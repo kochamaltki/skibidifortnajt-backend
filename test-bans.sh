@@ -9,7 +9,7 @@ token_2=$(./signup.sh $ip def def)
 tok_2=${token_2:1:-1}
 ./create-post.sh $ip abc a b $tok_1
 ./create-post.sh $ip def d e $tok_2
-./ban.sh $ip 1 100 "za bycie sprzedajna kurwa" $tok_0
+./ban.sh $ip 1 1000 "za bycie sprzedajna kurwa" $tok_0
 echo
 ./login.sh $ip abc abc
 echo

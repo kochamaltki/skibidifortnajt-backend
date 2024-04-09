@@ -179,11 +179,14 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(display_name_change_json())
         .and_then(change_display_name);
 
+    let image_auth = warp::header::<String>("auth");
+
     let upload_image = warp::post()
         .and(warp::path("api"))
         .and(warp::path("post"))
         .and(warp::path("upload"))
         .and(warp::path("image"))
+        .and(image_auth)
         .and(warp::multipart::form().max_length(25000000))
         .and_then(upload_image);
     

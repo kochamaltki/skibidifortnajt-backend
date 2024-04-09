@@ -87,8 +87,8 @@
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/post/upload/image
  - Post: Image (max 25MB)
- - Return: 200 (image-id) / 400 ("Invalid image format" / "File type error" / ) / 500 ("File read error")
- - Headers: 'Content-Type: multipart/form-data'
+ - Return: 200 (image-id) / 400 ("Invalid image format" / "File type error" / ) / 401 ("Wrong token") / 500 ("File read error")
+ - Headers: 'Content-Type: multipart/form-data', 'auth: {user_token}'
 #### /api/post/add-image-to-post
  - Post: AddImageToPostRequest
  - Effect: Image is added to post

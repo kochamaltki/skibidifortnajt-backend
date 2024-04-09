@@ -32,7 +32,7 @@ CREATE TABLE users(
 	display_name VARCHAR(64) NOT NULL,
 	description VARCHAR(2048) NOT NULL,
 	passwd VARCHAR(128) NOT NULL,
-	is_admin INTEGER NOT NULL,
+	is_admin INTEGER NOT NULL
 );
 
 CREATE TABLE likes(
@@ -76,4 +76,4 @@ CREATE TABLE bans(
 --                               | post_id | many -|
 --                               -----------
 
-INSERT INTO users VALUES (0, 'root', 'gigachadadmin', 'hala madrid', 'toor', 1, 0);
+INSERT INTO users VALUES (0, 'root', 'gigachadadmin', 'hala madrid', 'toor', 1);

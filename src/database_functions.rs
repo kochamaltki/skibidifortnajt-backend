@@ -83,7 +83,7 @@ pub async fn check_banned(connection: &Connection, user_id: i64) -> bool {
         let mut statement = conn.prepare(query).unwrap();
         let mut rows = statement.query(params![user_id]).unwrap();
         if let Ok(Some(row)) = rows.next() {
-            Ok(row.get::<_, i64>(0).unwrap() != 0)              /// do zmiany
+            Ok(row.get::<_, i64>(0).unwrap() != 0)              // do zmiany
         } else {
             Ok(true)
         }
@@ -294,7 +294,7 @@ pub async fn add_user_db(connection: &Connection, request: SignupRequest) -> Jso
     let user_id = max_user_id(connection).await.unwrap();
     let user_name = request.user_name.clone();
     
-    let signup_query = "INSERT INTO users VALUES (:user_id, :user_name, :user_name, '', :passwd, 0, 0)";
+    let signup_query = "INSERT INTO users VALUES (:user_id, :user_name, :user_name, '', :passwd, 0)";
     connection.call(move |conn| {
         let mut statement = conn.prepare(signup_query).unwrap();
         statement.execute(params![user_id, request.user_name, request.passwd]).unwrap();

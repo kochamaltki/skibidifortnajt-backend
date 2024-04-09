@@ -10,6 +10,7 @@ use tracing::{error, info};
 use warp::filters::multipart::FormData;
 use warp::reject::Rejection;
 use warp::Filter;
+use std::time::SystemTime;
 
 pub async fn get_posts_by_user(user_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = tokio_rusqlite::Connection::open("projekt-db")
@@ -616,7 +617,7 @@ pub async fn upgrade_user(
     }
 }
 
-pub async fn ban_user(request: UserBanRequest) -> Result<impl warp::Reply, warp::Rejection> { /// do zmiany
+pub async fn ban_user(request: UserBanRequest) -> Result<impl warp::Reply, warp::Rejection> { // do zmiany
     let token: TokenData<Claims>;
     match verify_token::verify_token(request.token) {
         Ok(val) => token = val,
@@ -641,13 +642,14 @@ pub async fn ban_user(request: UserBanRequest) -> Result<impl warp::Reply, warp:
         .await
         .unwrap();
     let id = request.user_id;
-    let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH);
+    let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64;
+    let expiration = timestamp + request.ban_length;
     if check_user_id(&connection, id).await {
         let ban_query = "INSERT INTO bans VALUES (?, ?, ?, ?, ?)";
         connection
             .call(move |conn| {
                 let mut statement = conn.prepare(ban_query).unwrap();
-                statement.execute(params![id, timestamp]).unwrap();
+                statement.execute(params![id, timestamp, expiration, request.ban_message, 1]).unwrap();
                 Ok(0)
             })
             .await

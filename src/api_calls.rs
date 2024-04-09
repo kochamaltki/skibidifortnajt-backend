@@ -26,6 +26,14 @@ pub async fn get_posts_by_user(user_id: i64) -> Result<impl warp::Reply, warp::R
         ));
     }
 
+    if check_banned(&connection, user_id).await == true {
+        let r = "This user has been banned";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::UNAUTHORIZED,
+        ));
+    }
+
     let post_list = connection
         .call(move |conn| {
             let mut statement = conn.prepare(query).unwrap();
@@ -67,17 +75,19 @@ pub async fn get_posts_by_tag(tag: String) -> Result<impl warp::Reply, warp::Rej
         }
     };
 
-    let query = "
+    let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64;
+    let query = format!("
         SELECT posts.post_id, posts.user_id, posts.date, posts.body 
         FROM posts 
         JOIN posts_tags
         ON posts.post_id = posts_tags.post_id 
-        WHERE posts_tags.tag_id = ?
-    ";
-
+        WHERE posts_tags.tag_id = ? 
+        AND posts.user_id NOT IN 
+        (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
+    ", timestamp);
     let post_list = connection
         .call(move |conn| {
-            let mut statement = conn.prepare(query).unwrap();
+            let mut statement = conn.prepare(&query).unwrap();
             let mut rows = statement.query(params![tag_id]).unwrap();
             let mut post_vec: Vec<Post> = Vec::new();
             while let Ok(Some(row)) = rows.next() {
@@ -105,11 +115,15 @@ pub async fn get_posts() -> Result<impl warp::Reply, warp::Rejection> {
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
         .unwrap();
-    let query = "SELECT * FROM posts";
+    let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64;
+    let query = format!("
+        SELECT * FROM posts
+        WHERE posts.user_id NOT IN
+        (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})", timestamp);
 
     let post_list = connection
         .call(move |conn| {
-            let mut statement = conn.prepare(query).unwrap();
+            let mut statement = conn.prepare(&query).unwrap();
             let mut rows = statement.query(params![]).unwrap();
             let mut post_vec: Vec<Post> = Vec::new();
             while let Ok(Some(row)) = rows.next() {
@@ -206,6 +220,14 @@ pub async fn get_post_by_id(post_id: i64) -> Result<impl warp::Reply, warp::Reje
         .await
         .unwrap();
 
+    if check_banned(&connection, post.user_id).await == true {
+        let r = "The user who made this post has been banned";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::UNAUTHORIZED,
+        ));
+    }
+
     if post.post_id != -1 {
         Ok(warp::reply::with_status(
             warp::reply::json(&post),
@@ -221,9 +243,20 @@ pub async fn get_post_by_id(post_id: i64) -> Result<impl warp::Reply, warp::Reje
 }
 
 pub async fn get_profile_by_id(user_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
+
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
         .unwrap();
+
+    if check_banned(&connection, user_id).await == true {
+        let r = "This user has been banned";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::UNAUTHORIZED, // nw czy nie ma lepszego kodu do zwrocenia
+        ));
+    }
+
+    
     let query = "SELECT user_id, user_name, display_name, description FROM users WHERE user_id = ?";
 
     if !check_user_id(&connection, user_id).await {
@@ -276,6 +309,14 @@ pub async fn get_user_name(user_id: i64) -> Result<impl warp::Reply, warp::Rejec
         return Ok(warp::reply::with_status(
             warp::reply::json(&r),
             warp::http::StatusCode::NOT_FOUND,
+        ));
+    }
+
+    if check_banned(&connection, user_id).await == true {
+        let r = "This user has been banned";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::UNAUTHORIZED,
         ));
     }
 

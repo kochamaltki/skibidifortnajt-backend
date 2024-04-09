@@ -4,10 +4,13 @@
  - Install sqlite (sqlite3, libsqlite3-dev packages)
  - Install gcc
  - Install rust
+ - Install docker, docker compose (optional)
  - If you want to use the test scripts, install curl
+ - Create media/image, media/profile_pictures
 ### Running
  - Before the first deploy, create a file `SECRET` in the root directory, with its content being a base64 secret
  - Run `./deploy.sh` from the root directory
+ - Docker: First `docker build -t backend .` and run `docker compose up` from the root directory
 ### Acces points
 #### /api/get/posts/by-user/{id}
  - Get: 200 (PostList) / 404 ("User not found")
@@ -84,8 +87,8 @@
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/post/upload/image
  - Post: Image (max 25MB)
- - Return: 200 (image-id) / 400 ("Invalid image format" / "File type error" / ) / 500 ("File read error")
- - Headers: 'Content-Type: multipart/form-data'
+ - Return: 200 (image-id) / 400 ("Invalid image format" / "File type error" / ) / 401 ("Wrong token") / 500 ("File read error")
+ - Headers: 'Content-Type: multipart/form-data', 'auth: {user_token}'
 #### /api/post/add-image-to-post
  - Post: AddImageToPostRequest
  - Effect: Image is added to post

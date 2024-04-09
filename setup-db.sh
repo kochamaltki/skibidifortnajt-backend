@@ -1,3 +1,3 @@
 #!/bin/bash
 
-sqlite3 projekt-db < setup.sql
+/usr/bin/sqlite3 projekt-db < setup.sql

@@ -415,3 +415,35 @@ pub async fn assign_image_to_post_db(connection: &Connection, post_id: i64, imag
     
     Ok(())
 }
+
+pub async fn add_upload_db(connection: &Connection, user_id: i64, weight: i16) {
+    let time_since_epoch: i64 = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64;
+    let add_query = "INSERT INTO uploads VALUES (?, ?, ?)";
+
+    connection.call(move |conn| {
+        let mut statement = conn.prepare(add_query).unwrap();
+        statement.execute(params![user_id, weight, time_since_epoch]).unwrap();
+        Ok(0)
+    }).await.unwrap();
+}
+
+pub async fn get_upload(connection: &Connection, user_id: i64) -> i64 {
+    let mut time_since_epoch: i64 = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64;
+    time_since_epoch -= 60;
+    let query = "SELECT SUM(weight) FROM uploads WHERE user_id = ? AND date > ?";
+    
+    connection.call(move |conn| {
+        let mut statement = conn.prepare(query).unwrap();
+        let mut rows = statement.query(params![user_id, time_since_epoch]).unwrap();
+        if let Some(val) = rows.next().unwrap() {
+            let ret = match val.get::<_, i64>(0) {
+                Ok(val) => {val},
+                Err(_) => {0}
+            };
+            Ok(ret)
+        } else {
+            Ok(0)
+        }
+
+    }).await.unwrap()
+}

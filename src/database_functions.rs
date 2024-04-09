@@ -73,19 +73,19 @@ pub async fn check_post_image(connection: &Connection, image_id: i64, post_id: i
 
 
 pub async fn check_banned(connection: &Connection, user_id: i64) -> bool {
-    let query = "SELECT is_banned FROM users WHERE user_id = ?";
+    let query = "SELECT is_active, expires_on FROM bans WHERE user_id = ? ORDER BY given_on DESC LIMIT 1";
 
     if !check_user_id(connection, user_id).await {
         return true;
     }
-
+    let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64;
     let is_banned = connection.call(move |conn| {
         let mut statement = conn.prepare(query).unwrap();
         let mut rows = statement.query(params![user_id]).unwrap();
         if let Ok(Some(row)) = rows.next() {
-            Ok(row.get::<_, i64>(0).unwrap() != 0)
+            Ok(row.get::<_, i64>(0).unwrap() == 1 && row.get::<_, i64>(1).unwrap() > timestamp)
         } else {
-            Ok(true)
+            Ok(false)
         }
     }).await.unwrap();
 
@@ -294,7 +294,7 @@ pub async fn add_user_db(connection: &Connection, request: SignupRequest) -> Jso
     let user_id = max_user_id(connection).await.unwrap();
     let user_name = request.user_name.clone();
     
-    let signup_query = "INSERT INTO users VALUES (:user_id, :user_name, :user_name, '', :passwd, 0, 0)";
+    let signup_query = "INSERT INTO users VALUES (:user_id, :user_name, :user_name, '', :passwd, 0)";
     connection.call(move |conn| {
         let mut statement = conn.prepare(signup_query).unwrap();
         statement.execute(params![user_id, request.user_name, request.passwd]).unwrap();

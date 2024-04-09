@@ -5,6 +5,7 @@ DROP TABLE IF EXISTS tags;
 DROP TABLE IF EXISTS likes;
 DROP TABLE IF EXISTS images;
 DROP TABLE IF EXISTS posts_images;
+DROP TABLE IF EXISTS uploads;
 
 CREATE TABLE posts(
 	post_id INTEGER PRIMARY KEY NOT NULL,
@@ -49,6 +50,12 @@ CREATE TABLE images(
 	image_file VARCHAR(64) NOT NULL
 );
 
+CREATE TABLE uploads(
+	user_id INTEGER NOT NULL,
+	weight SHORT NOT NULL,
+	date BIGINT NOT NULL
+);
+
 --   ----------------                                      -----------           --------------            ____________
 --   |    users     |                                      |  posts  |           | posts_tags |            |   tags   |
 --   ----------------                                      -----------           --------------            ------------
@@ -64,7 +71,15 @@ CREATE TABLE images(
 --                       |       |  likes  |       |                             ----------------            --------------
 --                       |       -----------       |
 --                       |- many | user_id |       | 
---                               | post_id | many -|
+--                       |       | post_id | many -|
+--                       |       -----------
+--                       |
+--                       |       -----------
+--                       |       | uploads |
+--                       |       -----------
+--                       |- many | user_id |
+--                               | weight  |
+--                               |  date   |
 --                               -----------
 
 INSERT INTO users VALUES (0, 'root', 'gigachadadmin', 'hala madrid', 'toor', 1, 0);

@@ -537,7 +537,7 @@ pub async fn delete_user(request: UserDeleteRequest) -> Result<impl warp::Reply,
         .unwrap();
     let id = token.claims.uid;
     if check_user_id(&connection, id).await {
-        let delete_query = "UPDATE users SET is_banned=1 WHERE user_id = ?";
+        let delete_query = "DELETE FROM users WHERE user_id = ?";
         connection
             .call(move |conn| {
                 let mut statement = conn.prepare(delete_query).unwrap();

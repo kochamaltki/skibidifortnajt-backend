@@ -10,7 +10,32 @@ tok_1=${token_1:1:-1}
 echo
 ./upload-image.sh $ip ./media/profile_pictures/default.png $tok_1
 echo
-./add-image-to-post.sh $ip 0 0 $tok_1
+./upload-image.sh $ip ./media/profile_pictures/default.png $tok_1
 echo
-./get-images-from-post.sh $ip 0
+./upload-image.sh $ip ./media/profile_pictures/default.png $tok_1
+echo
+./upload-image.sh $ip ./media/profile_pictures/default.png $tok_1
+echo
+./upload-image.sh $ip ./media/profile_pictures/default.png $tok_1
+echo
+./upload-image.sh $ip ./media/profile_pictures/default.png $tok_1
+echo
+./upload-image.sh $ip ./media/profile_pictures/default.png $tok_1
+echo
+./upload-image.sh $ip ./media/profile_pictures/default.png $tok_0
+echo
+sleep 6
+./upload-image.sh $ip ./media/profile_pictures/default.png $tok_1
+echo
+./upload-image.sh $ip ./media/profile_pictures/default.png $tok_1
+echo
+./upload-image.sh $ip ./media/profile_pictures/default.png $tok_1
+echo
+./upload-image.sh $ip ./media/profile_pictures/default.png $tok_1
+echo
+./upload-image.sh $ip ./media/profile_pictures/default.png $tok_1
+echo
+./upload-image.sh $ip ./media/profile_pictures/default.png $tok_1
+echo
+./upload-image.sh $ip ./media/profile_pictures/default.png $tok_1
 echo

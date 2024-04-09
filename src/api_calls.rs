@@ -722,7 +722,7 @@ pub async fn change_display_name(
 }
 
 pub async fn upload_image(auth: String, form: FormData) -> Result<impl warp::Reply, warp::Rejection> {
-    match verify_token::verify_token(auth) {
+    let token = match verify_token::verify_token(auth) {
         Ok(val) => val,
         Err(_) => {
             let r = "Wrong token";
@@ -733,9 +733,16 @@ pub async fn upload_image(auth: String, form: FormData) -> Result<impl warp::Rep
         }
     };
 
-    let connection = tokio_rusqlite::Connection::open("projekt-db")
-        .await
-        .unwrap();
+    let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
+
+    if get_upload(&connection, token.claims.uid).await > 50 && token.claims.is_admin == 0 {
+        let r = "Ur too fast";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::FORBIDDEN,
+        ));
+    }
+
     let mut parts = form.into_stream();
     while let Some(Ok(p)) = parts.next().await {
         if p.name() == "file" {
@@ -787,6 +794,7 @@ pub async fn upload_image(auth: String, form: FormData) -> Result<impl warp::Rep
                         error!("error writing file: {}", e);
                         warp::reject::reject()
                     })?;
+                    add_upload_db(&connection, token.claims.uid, 10).await;
                     info!("created file: {}", file_name);
                     return Ok(warp::reply::with_status(
                         warp::reply::json(&val),

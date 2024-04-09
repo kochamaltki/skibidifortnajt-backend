@@ -564,9 +564,7 @@ pub async fn delete_user(request: UserDeleteRequest) -> Result<impl warp::Reply,
     }
 }
 
-pub async fn upgrade_user(
-    request: UserUpgradeRequest,
-) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn upgrade_user(request: UserUpgradeRequest) -> Result<impl warp::Reply, warp::Rejection> {
     let token: TokenData<Claims>;
     match verify_token::verify_token(request.token) {
         Ok(val) => token = val,
@@ -655,10 +653,61 @@ pub async fn ban_user(request: UserBanRequest) -> Result<impl warp::Reply, warp:
             .await
             .unwrap();
 
-        purge_data(&connection, id).await;
 
         info!("User banned with id: {}", request.user_id);
         let r = "Ban successful";
+        Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::OK,
+        ))
+    } else {
+        let r = "User not found";
+        Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::NOT_FOUND,
+        ))
+    }
+}
+
+pub async fn unban_user(request: UserUnbanRequest) -> Result<impl warp::Reply, warp::Rejection> {
+    let token: TokenData<Claims>;
+    match verify_token::verify_token(request.token) {
+        Ok(val) => token = val,
+        Err(_) => {
+            let r = "Wrong token";
+            return Ok(warp::reply::with_status(
+                warp::reply::json(&r),
+                warp::http::StatusCode::UNAUTHORIZED,
+            ));
+        }
+    }
+
+    if token.claims.is_admin != 1 {
+        let r = "User is not admin";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::UNAUTHORIZED,
+        ));
+    }
+
+    let connection = tokio_rusqlite::Connection::open("projekt-db")
+        .await
+        .unwrap();
+    let id = request.user_id;
+    if check_user_id(&connection, id).await {
+        let unban_query = "UPDATE bans SET is_active = 0 WHERE user_id = ? AND is_active = 1";
+        connection
+            .call(move |conn| {
+                let mut statement = conn.prepare(unban_query).unwrap();
+                statement.execute(params![id]).unwrap();
+                Ok(0)
+            })
+            .await
+            .unwrap();
+
+
+        info!("User unbanned with id: {}", request.user_id);
+        let r = "Unban successful";
         Ok(warp::reply::with_status(
             warp::reply::json(&r),
             warp::http::StatusCode::OK,
@@ -897,6 +946,10 @@ pub fn upgrade_json(
 }
 
 pub fn ban_json() -> impl Filter<Extract = (UserBanRequest,), Error = warp::Rejection> + Clone {
+    warp::body::content_length_limit(1024 * 16).and(warp::body::json())
+}
+
+pub fn unban_json() -> impl Filter<Extract = (UserUnbanRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
 

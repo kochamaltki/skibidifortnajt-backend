@@ -170,6 +170,15 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(ban_json())
         .and_then(ban_user);
 
+    let unban = warp::post()
+        .and(warp::path("api"))
+        .and(warp::path("admin"))
+        .and(warp::path("post"))
+        .and(warp::path("unban-user"))
+        .and(warp::path::end())
+        .and(unban_json())
+        .and_then(unban_user);
+
     let change_display_name = warp::post()
         .and(warp::path("api"))
         .and(warp::path("post"))
@@ -206,6 +215,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .or(upgrade)
         .or(get_post_by_id)
         .or(ban)
+        .or(unban)
         .or(get_posts_by_tag)
         .or(get_tags_from_post)
         .or(react)

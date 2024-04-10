@@ -13,5 +13,5 @@ RUN mkdir -p ./media/profile-pictures
 COPY . .
 RUN /usr/bin/sqlite3 projekt-db < setup.sql
 RUN ls -a
-RUN /root/.cargo/bin/cargo build
+RUN /root/.cargo/bin/cargo build --release
 CMD /root/.cargo/bin/cargo run

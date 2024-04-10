@@ -64,30 +64,31 @@ CREATE TABLE uploads(
 	date BIGINT NOT NULL
 );
 
---   ----------------                                      -----------           --------------            ____________
---   |    users     |                                      |  posts  |           | posts_tags |            |   tags   |
---   ----------------                                      -----------           --------------            ------------
+--                               -----------------
+--                               |     bans      |
+--                               -----------------
+--                       |- many |    user_id    |
+--                       |       |   given_on    |
+--                       |       |  expires_on   |
+--   ----------------    |       |  ban_message  |         -----------           --------------            ____________
+--   |    users     |    |       |   is_active   |         |  posts  |           | posts_tags |            |   tags   |
+--   ----------------    |       -----------------         -----------           --------------            ------------
 --   |   user_id    | 1 -|                         |---- 1 | post_id | 1 -- many |   post_id  |       |- 1 |  tag_id  |
 --   |  user_name   |    |-------------------------+- many | user_id |   |       |   tag_id   | many -|    | tag_name |
 --   | display_name |    |                         |       |  date   |   |       --------------            ------------
---   | description  |    |                         |       |  body   |   |
---   |    passwd    |    |                         |       |  likes  |   |       ----------------            --------------
---   |   is_admin   |    |                         |       -----------   |       | posts_images |            |   images   |
---   |  is_banned   |    |                         |                     |       ----------------            --------------
---   ----------------    |                         |                     |- many |   post_id    |       |- 1 |  image_id  |
---                       |       -----------       |                             |   image_id   | many -|    | image_file |
---                       |       |  likes  |       |                             ----------------            --------------
---                       |       -----------       |
---                       |- many | user_id |       | 
---                       |       | post_id | many -|
+--   | description  |    |       -----------       |       |  body   |   |
+--   |    passwd    |    |       |  likes  |       |       |  likes  |   |       ----------------            --------------
+--   |   is_admin   |    |       -----------       |       -----------   |       | posts_images |            |   images   |
+--   ----------------    |- many | user_id |       |                     |       ----------------            --------------
+--                       |       | post_id | many -|                     |- many |   post_id    |       |- 1 |  image_id  |
+--                       |       -----------                                     |   image_id   | many -|    | image_file |
+--                       |                                                       ----------------            --------------
 --                       |       -----------
---                       |
---                       |       -----------
---                       |       | uploads |
+--                       |       | uploads |        
 --                       |       -----------
 --                       |- many | user_id |
 --                               | weight  |
 --                               |  date   |
---                               -----------
+--                               -----------       
 
-INSERT INTO users VALUES (0, 'root', 'gigachadadmin', 'hala madrid', 'toor', 1);
+INSERT INTO users VALUES (0, 'root', 'gigachadadmin', '', 'toor', 1);

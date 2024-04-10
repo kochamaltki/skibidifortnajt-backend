@@ -6,7 +6,7 @@
  - Install rust
  - Install docker, docker compose (optional)
  - If you want to use the test scripts, install curl
- - Create media/image, media/profile_pictures
+ - Create file `secret.sql` in the root directory with the following content `INSERT INTO users VALUES (0, '{admin_user}', '{admin_display_name}', '{admin_desc}', '{admin_passwd}', 1);`
 ### Running
  - Before the first deploy, create a file `SECRET` in the root directory, with its content being a base64 secret
  - Run `./deploy.sh` from the root directory

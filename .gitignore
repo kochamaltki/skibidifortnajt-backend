@@ -2,9 +2,6 @@
 Cargo.lock
 projekt-db
 SECRET
-/media/backround/*
-/media/profile_pictures/*
-/media/images/*
-!/media/backround/default.*
-!/media/profile_pictures/default.*
-!/media/images/default.*
+secret.sql
+/media/profile_pictures
+/media/images

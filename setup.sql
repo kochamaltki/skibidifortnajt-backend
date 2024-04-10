@@ -90,5 +90,3 @@ CREATE TABLE uploads(
 --                               | weight  |
 --                               |  date   |
 --                               -----------       
-
-INSERT INTO users VALUES (0, 'root', 'gigachadadmin', '', 'toor', 1);

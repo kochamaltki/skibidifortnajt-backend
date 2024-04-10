@@ -76,9 +76,15 @@
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/admin/post/ban-user
  - Post: UserBanRequest
- - Effect: User with given id is banned and their posts are deleted
+ - Effect: User with given id is banned
  - Note: Token must belong to an admin
  - Return: 200 ("Ban succesful") / 401 ("User is not admin" / "Wrong token") / 404 ("User not found")
+ - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
+#### /api/admin/post/unban-user
+ - Post: UserUnbanRequest
+ - Effect: User with given id is unbanned
+ - Note: Token must belong to an admin
+ - Return: 200 ("Unban succesful") / 401 ("User is not admin" / "Wrong token") / 404 ("User not found")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/post/change/display-name
  - Post: DisplayNameChangeRequest
@@ -173,6 +179,12 @@ UserBanRequest {
     user_id: i64
     ban_length: i64,
     ban_message: string,
+    token: string
+}
+```
+```
+struct UserUnbanRequest {
+    user_id: i64,
     token: string
 }
 ```

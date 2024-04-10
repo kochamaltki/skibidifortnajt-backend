@@ -171,6 +171,8 @@ UserUpgradeRequest {
 ```
 UserBanRequest {
     user_id: i64
+    ban_length: i64,
+    ban_message: string,
     token: string
 }
 ```

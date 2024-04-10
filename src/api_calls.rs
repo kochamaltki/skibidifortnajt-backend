@@ -804,6 +804,11 @@ pub async fn change_display_name(
         }
     }
     
+    let connection = tokio_rusqlite::Connection::open("projekt-db")
+        .await
+        .unwrap();
+    let id = token.claims.uid;
+
     if is_limited(&connection, token.claims.uid).await && token.claims.is_admin == 0 {
         let r = "Ur too fast";
         return Ok(warp::reply::with_status(
@@ -811,11 +816,6 @@ pub async fn change_display_name(
             warp::http::StatusCode::FORBIDDEN,
         ));
     }
-
-    let connection = tokio_rusqlite::Connection::open("projekt-db")
-        .await
-        .unwrap();
-    let id = token.claims.uid;
 
     if check_user_id(&connection, id).await {
         let change_query = "UPDATE users SET display_name= ? WHERE user_id = ?";

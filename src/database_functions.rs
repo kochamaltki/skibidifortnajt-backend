@@ -447,3 +447,7 @@ pub async fn get_upload(connection: &Connection, user_id: i64) -> i64 {
 
     }).await.unwrap()
 }
+
+pub async fn is_limited(connection: &Connection, user_id: i64) -> bool {
+    get_upload(connection, user_id).await > 50   
+}

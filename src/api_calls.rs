@@ -421,6 +421,14 @@ pub async fn post(request: PostCreateRequest) -> Result<impl warp::Reply, warp::
         .await
         .unwrap();
     let id = token.claims.uid;
+    
+    if is_limited(&connection, token.claims.uid).await && token.claims.is_admin == 0 {
+        let r = "Ur too fast";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::FORBIDDEN,
+        ));
+    }
 
     if check_banned(&connection, token.claims.uid).await == true {
         info!("User {} not allowed to post", token.claims.uid);
@@ -439,6 +447,7 @@ pub async fn post(request: PostCreateRequest) -> Result<impl warp::Reply, warp::
         ));
     };
 
+    add_upload_db(&connection, token.claims.uid, 5).await;
     let post_count = count_posts(&connection).await.unwrap();
 
     add_post_db(
@@ -472,10 +481,18 @@ pub async fn react(request: LikeRequest) -> Result<impl warp::Reply, warp::Rejec
             ));
         }
     }
-
+    
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
         .unwrap();
+    
+    if is_limited(&connection, token.claims.uid).await && token.claims.is_admin == 0 {
+        let r = "Ur too fast";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::FORBIDDEN,
+        ));
+    }
 
     if check_banned(&connection, token.claims.uid).await == true {
         info!("User {} not allowed to react", token.claims.uid);
@@ -494,6 +511,7 @@ pub async fn react(request: LikeRequest) -> Result<impl warp::Reply, warp::Rejec
         ));
     }
 
+    add_upload_db(&connection, token.claims.uid, 1).await;
     let existed = add_like_db(&connection, token.claims.uid, request.post_id).await;
 
     if existed {
@@ -516,7 +534,7 @@ pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Reje
         .await
         .unwrap();
     let name = request.user_name;
-
+    
     match get_id_passwd_adm(&connection, name.clone()).await {
         Ok((user_id, passwd, is_admin)) => {
             if check_banned(&connection, user_id).await == true {
@@ -785,11 +803,19 @@ pub async fn change_display_name(
             ));
         }
     }
-
+    
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
         .unwrap();
     let id = token.claims.uid;
+
+    if is_limited(&connection, token.claims.uid).await && token.claims.is_admin == 0 {
+        let r = "Ur too fast";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::FORBIDDEN,
+        ));
+    }
 
     if check_user_id(&connection, id).await {
         let change_query = "UPDATE users SET display_name= ? WHERE user_id = ?";
@@ -808,6 +834,7 @@ pub async fn change_display_name(
             "Display name changed for user with id: {}",
             token.claims.uid
         );
+        add_upload_db(&connection, token.claims.uid, 1).await;
         let r = "Display name change successful";
         Ok(warp::reply::with_status(
             warp::reply::json(&r),
@@ -836,7 +863,7 @@ pub async fn upload_image(auth: String, form: FormData) -> Result<impl warp::Rep
 
     let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
 
-    if get_upload(&connection, token.claims.uid).await > 50 && token.claims.is_admin == 0 {
+    if is_limited(&connection, token.claims.uid).await && token.claims.is_admin == 0 {
         let r = "Ur too fast";
         return Ok(warp::reply::with_status(
             warp::reply::json(&r),
@@ -921,6 +948,25 @@ pub async fn upload_image(auth: String, form: FormData) -> Result<impl warp::Rep
 
 pub async fn add_image_to_post(request: AddImageToPostRequest) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
+    
+    let token = match verify_token::verify_token(request.token.clone()) {
+        Ok(val) => val,
+        Err(_) => {
+            let r = "Wrong token";
+            return Ok(warp::reply::with_status(
+                warp::reply::json(&r),
+                warp::http::StatusCode::UNAUTHORIZED,
+            ));
+        }
+    };
+
+    if is_limited(&connection, token.claims.uid).await && token.claims.is_admin == 0 {
+        let r = "Ur too fast";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::FORBIDDEN,
+        ));
+    }
 
     if !check_image(&connection, request.image_id).await {
         let r = "Image not found";
@@ -938,17 +984,6 @@ pub async fn add_image_to_post(request: AddImageToPostRequest) -> Result<impl wa
         ));
     }
 
-    let token = match verify_token::verify_token(request.token) {
-        Ok(val) => val,
-        Err(_) => {
-            let r = "Wrong token";
-            return Ok(warp::reply::with_status(
-                warp::reply::json(&r),
-                warp::http::StatusCode::UNAUTHORIZED,
-            ));
-        }
-    };
-
     if token.claims.uid != get_user_from_post(&connection, request.post_id).await && token.claims.is_admin == 0 {
         let r = "User not authorized";
         return Ok(warp::reply::with_status(
@@ -957,6 +992,8 @@ pub async fn add_image_to_post(request: AddImageToPostRequest) -> Result<impl wa
         ));
     }
 
+    add_upload_db(&connection, token.claims.uid, 1).await;
+    
     match assign_image_to_post_db(&connection, request.post_id, request.image_id).await {
         Ok(_) => {
             let r = "Image added to post";

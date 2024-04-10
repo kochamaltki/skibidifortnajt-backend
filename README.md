@@ -183,7 +183,7 @@ UserBanRequest {
 }
 ```
 ```
-struct UserUnbanRequest {
+UserUnbanRequest {
     user_id: i64,
     token: string
 }

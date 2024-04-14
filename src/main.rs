@@ -235,7 +235,9 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
-    let cors = warp::cors().allow_any_origin();
-    let routes = routes().with(cors).recover(handle_rejection);
+    let cors = warp::cors().allow_any_origin()
+	.allow_methods(vec!["GET", "POST", "DELETE", "OPTIONS"])
+	.allow_headers(vec!["content-type"]);
+    let routes = routes().with(cors);
     warp::serve(routes).run(([0, 0, 0, 0], 8000)).await;
 }

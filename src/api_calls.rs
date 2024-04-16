@@ -538,6 +538,10 @@ impl Reject for IncorrectPassword {}
 struct UserBanned;
 impl Reject for UserBanned {}
 
+#[derive(Debug)]
+struct UserNotFound;
+impl Reject for UserNotFound {}
+
 pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
@@ -564,7 +568,7 @@ pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Reje
                 Err(warp::reject::custom(IncorrectPassword))
             }
         }
-        Err(_) => Err(warp::reject()),
+        Err(_) => Err(warp::reject::custom(UserNotFound)),
     }
 }
 

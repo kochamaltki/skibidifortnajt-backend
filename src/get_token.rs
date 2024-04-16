@@ -23,7 +23,7 @@ fn get_sys_time_in_secs() -> u64 {
 pub fn get_token(user_id: i64, is_admin_value: i64) -> String {
     let file_contents = get_secret();
     let jwt_secret = file_contents.as_str().trim();
-    let expiration = get_sys_time_in_secs() + 864000; // wazny przez 10 dni
+    let expiration = get_sys_time_in_secs() + 1209600; // wazny przez 10 dni
 
     let claims = Claims {
         uid: user_id,

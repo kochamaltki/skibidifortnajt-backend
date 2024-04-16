@@ -242,8 +242,10 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
 async fn main() {
     tracing_subscriber::fmt::init();
     let cors = warp::cors().allow_any_origin()
-      .allow_methods(vec!["GET", "POST", "DELETE", "OPTIONS"])
-	    .allow_headers(vec!["content-type"]);
+        .allow_methods(vec!["GET", "POST", "DELETE", "OPTIONS"])
+        .allow_headers(vec!["content-type"])
+        .allow_credentials(true);
+
     let routes = routes().with(cors); // lepiej to wywalic chyba bo z nim sa gorsze response code'y niz bez niego
     warp::serve(routes).run(([0, 0, 0, 0], 8000)).await;
 }

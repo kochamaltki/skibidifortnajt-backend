@@ -290,7 +290,7 @@ pub async fn add_post_db(connection: &Connection, post: Post, tags: Vec<String>)
     );
 }
 
-pub async fn add_user_db(connection: &Connection, request: SignupRequest) -> Json {
+pub async fn add_user_db(connection: &Connection, request: SignupRequest) -> String {
     let user_id = max_user_id(connection).await.unwrap();
     let user_name = request.user_name.clone();
     
@@ -302,7 +302,7 @@ pub async fn add_user_db(connection: &Connection, request: SignupRequest) -> Jso
     }).await.unwrap();
 
     info!("User {} created with id {}", user_name, user_id);
-    warp::reply::json(&get_token(user_id, 0))
+    get_token(user_id, 0)
 }
 
 pub async fn get_id_passwd_adm(connection: &Connection, user: String) -> Result<(i64, String, i64), String> {

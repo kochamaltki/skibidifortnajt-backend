@@ -557,7 +557,7 @@ pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Reje
                 Ok(warp::reply::with_header(
                     token.clone(),
                     "set-cookie",
-                    format!("token={}; Path=/; Max-Age=1209600; HttpOnly", token),
+                    format!("token={}; Path=/; Max-Age=1209600; HttpOnly; Secure; SameSite=None; Partitioned", token),
                 ))
             } else {
                 info!("User {} failed to log in", name);

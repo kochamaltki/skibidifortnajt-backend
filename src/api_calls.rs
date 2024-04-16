@@ -584,7 +584,7 @@ pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Re
         Ok(warp::reply::with_header(
             token.clone(),
             "set-cookie",
-            format!("token={}; Path=/; HttpOnly; Max-Age=1209600", token),
+            format!("token={}; Path=/; Max-Age=1209600; HttpOnly; Secure; SameSite=None; Partitioned", token),
         ))
     }
 }

@@ -241,9 +241,16 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
-    let cors = warp::cors().allow_any_origin()
-      .allow_methods(vec!["GET", "POST", "DELETE", "OPTIONS"])
-	    .allow_headers(vec!["content-type"]);
-    let routes = routes().with(cors); // lepiej to wywalic chyba bo z nim sa gorsze response code'y niz bez niego
+    let cors = warp::cors()
+        .allow_any_origin()
+        .allow_headers(vec!["Access-Control-Allow-Origin", "Origin", "Accept", 
+                       "X-Requested-With", "Content-Type", 
+                       "Access-Control-Allow-Credentials",
+                       "Access-Control-Allow-Methods",
+                       "Access-Control-Allow-Headers"])
+        .allow_methods(vec!["GET", "POST"])
+        .allow_credentials(true)
+        .max_age(30);
+    let routes = routes().with(cors).recover(handle_rejection);
     warp::serve(routes).run(([0, 0, 0, 0], 8000)).await;
 }

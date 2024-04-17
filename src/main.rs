@@ -246,6 +246,6 @@ async fn main() {
         .allow_headers(vec!["content-type"])
         .allow_credentials(true);
 
-    let routes = routes().with(cors); // lepiej to wywalic chyba bo z nim sa gorsze response code'y niz bez niego
+    let routes = routes().with(cors);
     warp::serve(routes).run(([0, 0, 0, 0], 8000)).await;
 }

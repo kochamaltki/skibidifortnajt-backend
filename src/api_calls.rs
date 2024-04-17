@@ -9,6 +9,7 @@ use tokio_rusqlite::params;
 use tracing::{error, info};
 use warp::filters::multipart::FormData;
 use warp::reject::{Reject, Rejection};
+use warp::reply::json;
 use warp::Filter;
 use std::time::SystemTime;
 
@@ -538,6 +539,10 @@ impl Reject for IncorrectPassword {}
 struct UserBanned;
 impl Reject for UserBanned {}
 
+#[derive(Debug)]
+struct UserNotFound;
+impl Reject for UserNotFound {}
+
 pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
@@ -564,13 +569,17 @@ pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Reje
                 Err(warp::reject::custom(IncorrectPassword))
             }
         }
-        Err(_) => Err(warp::reject()),
+        Err(_) => Err(warp::reject::custom(UserNotFound)),
     }
 }
 
 #[derive(Debug)]
 struct UserAlereadyExists;
 impl Reject for UserAlereadyExists {}
+
+#[derive(Debug)]
+struct WrongToken;
+impl Reject for WrongToken {}
 
 pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = tokio_rusqlite::Connection::open("projekt-db")
@@ -590,14 +599,11 @@ pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Re
 }
 
 pub async fn delete_user(token: String, request: UserDeleteRequest) -> Result<impl warp::Reply, warp::Rejection> {
+    info!("{}", token);
     let token = match verify_token::verify_token(token) {
         Ok(val) => val,
         Err(_) => {
-            let r = "Wrong token";
-            return Ok(warp::reply::with_status(
-                warp::reply::json(&r),
-                warp::http::StatusCode::UNAUTHORIZED,
-            ));
+            return Err(warp::reject::custom(WrongToken));
         }
     };
     let connection = tokio_rusqlite::Connection::open("projekt-db")
@@ -619,16 +625,11 @@ pub async fn delete_user(token: String, request: UserDeleteRequest) -> Result<im
 
         info!("User {} deleted", id);
         let r = "User deleted";
-        Ok(warp::reply::with_status(
-            warp::reply::json(&r),
-            warp::http::StatusCode::OK,
-        ))
+        let res = warp::reply::with_status(r, warp::http::StatusCode::OK);
+        let res = warp::reply::with_header(res, "Access-Control-Allow-Origin", "*");
+        Ok(res)
     } else {
-        let r = "User not found";
-        Ok(warp::reply::with_status(
-            warp::reply::json(&r),
-            warp::http::StatusCode::NOT_FOUND,
-        ))
+        Err(warp::reject::custom(UserNotFound))
     }
 }
 
@@ -1010,18 +1011,9 @@ pub async fn add_image_to_post(token: String, request: AddImageToPostRequest) ->
 }
 
 pub async fn handle_rejection(err: Rejection) -> std::result::Result<impl warp::Reply, std::convert::Infallible> {
-    let (code, message) = if err.is_not_found() {
-        (warp::http::StatusCode::NOT_FOUND, "Not Found".to_string())
-    } else if err.find::<warp::reject::PayloadTooLarge>().is_some() {
-        (warp::http::StatusCode::BAD_REQUEST, "Payload too large".to_string())
-    } else {
-        (
-            warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-            "Internal Server Error".to_string(),
-        )
-    };
-
-    Ok(warp::reply::with_status(message, code))
+    let err_msg = format!("{:?}", err);
+    error!("{:?}", err);
+    Ok(warp::reply::json(&err_msg))
 }
 
 pub fn post_json() -> impl Filter<Extract = (PostCreateRequest,), Error = warp::Rejection> + Clone {

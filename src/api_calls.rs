@@ -1,14 +1,15 @@
 use crate::database_functions::*;
 use crate::get_token::get_token;
 use crate::types::*;
-use crate::verify_token::{self, Claims};
+use crate::verify_token::{self};
 use bytes::BufMut;
 use futures::{StreamExt, TryStreamExt};
-use jsonwebtoken::TokenData;
+
 use tokio_rusqlite::params;
 use tracing::{error, info};
 use warp::filters::multipart::FormData;
-use warp::reject::Rejection;
+use warp::reject::{Reject, Rejection};
+
 use warp::Filter;
 use std::time::SystemTime;
 
@@ -26,7 +27,7 @@ pub async fn get_posts_by_user(user_id: i64) -> Result<impl warp::Reply, warp::R
         ));
     }
 
-    if check_banned(&connection, user_id).await == true {
+    if check_banned(&connection, user_id).await {
         let r = "This user has been banned";
         return Ok(warp::reply::with_status(
             warp::reply::json(&r),
@@ -404,18 +405,20 @@ pub async fn get_images_from_post(post_id: i64) -> Result<impl warp::Reply, warp
     ))
 }
 
-pub async fn post(request: PostCreateRequest) -> Result<impl warp::Reply, warp::Rejection> {
-    let token: TokenData<Claims>;
-    match verify_token::verify_token(request.token) {
-        Ok(val) => token = val,
+pub async fn post(token: String, request: PostCreateRequest) -> Result<impl warp::Reply, warp::Rejection> {
+    info!("{}", token);
+    let token = match verify_token::verify_token(token) {
+        Ok(val) => val,
         Err(_) => {
             let r = "Wrong token";
+            info!("{}", r);
             return Ok(warp::reply::with_status(
                 warp::reply::json(&r),
                 warp::http::StatusCode::UNAUTHORIZED,
             ));
         }
-    }
+    };
+    info!("dghfghghfghf");
 
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
@@ -430,7 +433,7 @@ pub async fn post(request: PostCreateRequest) -> Result<impl warp::Reply, warp::
         ));
     }
 
-    if check_banned(&connection, token.claims.uid).await == true {
+    if check_banned(&connection, token.claims.uid).await {
         info!("User {} not allowed to post", token.claims.uid);
         let r = "User is banned";
         return Ok(warp::reply::with_status(
@@ -469,10 +472,9 @@ pub async fn post(request: PostCreateRequest) -> Result<impl warp::Reply, warp::
     ))
 }
 
-pub async fn react(request: LikeRequest) -> Result<impl warp::Reply, warp::Rejection> {
-    let token: TokenData<Claims>;
-    match verify_token::verify_token(request.token) {
-        Ok(val) => token = val,
+pub async fn react(token: String, request: LikeRequest) -> Result<impl warp::Reply, warp::Rejection> {
+    let token = match verify_token::verify_token(token) {
+        Ok(val) => val,
         Err(_) => {
             let r = "Wrong token";
             return Ok(warp::reply::with_status(
@@ -480,7 +482,7 @@ pub async fn react(request: LikeRequest) -> Result<impl warp::Reply, warp::Rejec
                 warp::http::StatusCode::UNAUTHORIZED,
             ));
         }
-    }
+    };
     
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
@@ -494,7 +496,7 @@ pub async fn react(request: LikeRequest) -> Result<impl warp::Reply, warp::Rejec
         ));
     }
 
-    if check_banned(&connection, token.claims.uid).await == true {
+    if check_banned(&connection, token.claims.uid).await {
         info!("User {} not allowed to react", token.claims.uid);
         let r = "User is banned";
         return Ok(warp::reply::with_status(
@@ -529,6 +531,18 @@ pub async fn react(request: LikeRequest) -> Result<impl warp::Reply, warp::Rejec
     }
 }
 
+#[derive(Debug)]
+struct IncorrectPassword;
+impl Reject for IncorrectPassword {}
+
+#[derive(Debug)]
+struct UserBanned;
+impl Reject for UserBanned {}
+
+#[derive(Debug)]
+struct UserNotFound;
+impl Reject for UserNotFound {}
+
 pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
@@ -537,36 +551,35 @@ pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Reje
     
     match get_id_passwd_adm(&connection, name.clone()).await {
         Ok((user_id, passwd, is_admin)) => {
-            if check_banned(&connection, user_id).await == true {
+            if check_banned(&connection, user_id).await {
                 info!("Can't log in user {}, reason - ban", user_id);
-                let r = "Your account is banned";
-                return Ok(warp::reply::with_status(
-                    warp::reply::json(&r),
-                    warp::http::StatusCode::UNAUTHORIZED,
-                ));
+                return Err(warp::reject::custom(UserBanned));
             };
 
             if passwd == request.passwd {
                 info!("User {} logged in", name);
-                Ok(warp::reply::with_status(
-                    warp::reply::json(&get_token(user_id, is_admin)),
-                    warp::http::StatusCode::OK,
+                let token = get_token(user_id, is_admin);
+                Ok(warp::reply::with_header(
+                    token.clone(),
+                    "set-cookie",
+                    format!("token={}; Path=/; Max-Age=1209600; HttpOnly; Secure; SameSite=None; Partitioned", token),
                 ))
             } else {
                 info!("User {} failed to log in", name);
-                let r = "Password incorrect".to_string();
-                Ok(warp::reply::with_status(
-                    warp::reply::json(&r),
-                    warp::http::StatusCode::UNAUTHORIZED,
-                ))
+                Err(warp::reject::custom(IncorrectPassword))
             }
         }
-        Err(e) => Ok(warp::reply::with_status(
-            warp::reply::json(&e),
-            warp::http::StatusCode::NOT_FOUND,
-        )),
+        Err(_) => Err(warp::reject::custom(UserNotFound)),
     }
 }
+
+#[derive(Debug)]
+struct UserAlereadyExists;
+impl Reject for UserAlereadyExists {}
+
+#[derive(Debug)]
+struct WrongToken;
+impl Reject for WrongToken {}
 
 pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = tokio_rusqlite::Connection::open("projekt-db")
@@ -574,32 +587,25 @@ pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Re
         .unwrap();
 
     if check_user_name(&connection, request.user_name.clone()).await {
-        let r = "User already exists".to_string();
-        Ok(warp::reply::with_status(
-            warp::reply::json(&r),
-            warp::http::StatusCode::CONFLICT,
-        ))
+        Err(warp::reject::custom(UserAlereadyExists))
     } else {
         let token = add_user_db(&connection, request).await;
-        Ok(warp::reply::with_status(
-            token,
-            warp::http::StatusCode::CREATED,
+        Ok(warp::reply::with_header(
+            token.clone(),
+            "set-cookie",
+            format!("token={}; Path=/; Max-Age=1209600; HttpOnly; Secure; SameSite=None; Partitioned", token),
         ))
     }
 }
 
-pub async fn delete_user(request: UserDeleteRequest) -> Result<impl warp::Reply, warp::Rejection> {
-    let token: TokenData<Claims>;
-    match verify_token::verify_token(request.token) {
-        Ok(val) => token = val,
+pub async fn delete_user(token: String, _request: UserDeleteRequest) -> Result<impl warp::Reply, warp::Rejection> {
+    info!("{}", token);
+    let token = match verify_token::verify_token(token) {
+        Ok(val) => val,
         Err(_) => {
-            let r = "Wrong token";
-            return Ok(warp::reply::with_status(
-                warp::reply::json(&r),
-                warp::http::StatusCode::UNAUTHORIZED,
-            ));
+            return Err(warp::reject::custom(WrongToken));
         }
-    }
+    };
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
         .unwrap();
@@ -619,23 +625,17 @@ pub async fn delete_user(request: UserDeleteRequest) -> Result<impl warp::Reply,
 
         info!("User {} deleted", id);
         let r = "User deleted";
-        Ok(warp::reply::with_status(
-            warp::reply::json(&r),
-            warp::http::StatusCode::OK,
-        ))
+        let res = warp::reply::with_status(r, warp::http::StatusCode::OK);
+        let res = warp::reply::with_header(res, "Access-Control-Allow-Origin", "*");
+        Ok(res)
     } else {
-        let r = "User not found";
-        Ok(warp::reply::with_status(
-            warp::reply::json(&r),
-            warp::http::StatusCode::NOT_FOUND,
-        ))
+        Err(warp::reject::custom(UserNotFound))
     }
 }
 
-pub async fn upgrade_user(request: UserUpgradeRequest) -> Result<impl warp::Reply, warp::Rejection> {
-    let token: TokenData<Claims>;
-    match verify_token::verify_token(request.token) {
-        Ok(val) => token = val,
+pub async fn upgrade_user(token: String, request: UserUpgradeRequest) -> Result<impl warp::Reply, warp::Rejection> {
+    let token = match verify_token::verify_token(token) {
+        Ok(val) => val,
         Err(_) => {
             let r = "Wrong token";
             return Ok(warp::reply::with_status(
@@ -643,7 +643,7 @@ pub async fn upgrade_user(request: UserUpgradeRequest) -> Result<impl warp::Repl
                 warp::http::StatusCode::UNAUTHORIZED,
             ));
         }
-    }
+    };
 
     if token.claims.is_admin != 1 {
         let r = "User is not admin";
@@ -683,10 +683,9 @@ pub async fn upgrade_user(request: UserUpgradeRequest) -> Result<impl warp::Repl
     }
 }
 
-pub async fn ban_user(request: UserBanRequest) -> Result<impl warp::Reply, warp::Rejection> {
-    let token: TokenData<Claims>;
-    match verify_token::verify_token(request.token) {
-        Ok(val) => token = val,
+pub async fn ban_user(token: String, request: UserBanRequest) -> Result<impl warp::Reply, warp::Rejection> {
+    let token = match verify_token::verify_token(token) {
+        Ok(val) => val,
         Err(_) => {
             let r = "Wrong token";
             return Ok(warp::reply::with_status(
@@ -694,7 +693,7 @@ pub async fn ban_user(request: UserBanRequest) -> Result<impl warp::Reply, warp:
                 warp::http::StatusCode::UNAUTHORIZED,
             ));
         }
-    }
+    };
 
     if token.claims.is_admin != 1 {
         let r = "User is not admin";
@@ -737,10 +736,9 @@ pub async fn ban_user(request: UserBanRequest) -> Result<impl warp::Reply, warp:
     }
 }
 
-pub async fn unban_user(request: UserUnbanRequest) -> Result<impl warp::Reply, warp::Rejection> {
-    let token: TokenData<Claims>;
-    match verify_token::verify_token(request.token) {
-        Ok(val) => token = val,
+pub async fn unban_user(token: String, request: UserUnbanRequest) -> Result<impl warp::Reply, warp::Rejection> {
+    let token = match verify_token::verify_token(token) {
+        Ok(val) => val,
         Err(_) => {
             let r = "Wrong token";
             return Ok(warp::reply::with_status(
@@ -748,7 +746,7 @@ pub async fn unban_user(request: UserUnbanRequest) -> Result<impl warp::Reply, w
                 warp::http::StatusCode::UNAUTHORIZED,
             ));
         }
-    }
+    };
 
     if token.claims.is_admin != 1 {
         let r = "User is not admin";
@@ -790,11 +788,11 @@ pub async fn unban_user(request: UserUnbanRequest) -> Result<impl warp::Reply, w
 }
 
 pub async fn change_display_name(
+    token: String,
     request: DisplayNameChangeRequest,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    let token: TokenData<Claims>;
-    match verify_token::verify_token(request.token) {
-        Ok(val) => token = val,
+    let token = match verify_token::verify_token(token) {
+        Ok(val) => val,
         Err(_) => {
             let r = "Wrong token";
             return Ok(warp::reply::with_status(
@@ -802,7 +800,7 @@ pub async fn change_display_name(
                 warp::http::StatusCode::UNAUTHORIZED,
             ));
         }
-    }
+    };
     
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
@@ -849,8 +847,8 @@ pub async fn change_display_name(
     }
 }
 
-pub async fn upload_image(auth: String, form: FormData) -> Result<impl warp::Reply, warp::Rejection> {
-    let token = match verify_token::verify_token(auth) {
+pub async fn upload_image(token: String, form: FormData) -> Result<impl warp::Reply, warp::Rejection> {
+    let token = match verify_token::verify_token(token) {
         Ok(val) => val,
         Err(_) => {
             let r = "Wrong token";
@@ -946,10 +944,10 @@ pub async fn upload_image(auth: String, form: FormData) -> Result<impl warp::Rep
     ))
 }
 
-pub async fn add_image_to_post(request: AddImageToPostRequest) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn add_image_to_post(token: String, request: AddImageToPostRequest) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
     
-    let token = match verify_token::verify_token(request.token.clone()) {
+    let token = match verify_token::verify_token(token) {
         Ok(val) => val,
         Err(_) => {
             let r = "Wrong token";
@@ -1013,18 +1011,9 @@ pub async fn add_image_to_post(request: AddImageToPostRequest) -> Result<impl wa
 }
 
 pub async fn handle_rejection(err: Rejection) -> std::result::Result<impl warp::Reply, std::convert::Infallible> {
-    let (code, message) = if err.is_not_found() {
-        (warp::http::StatusCode::NOT_FOUND, "Not Found".to_string())
-    } else if err.find::<warp::reject::PayloadTooLarge>().is_some() {
-        (warp::http::StatusCode::BAD_REQUEST, "Payload too large".to_string())
-    } else {
-        (
-            warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-            "Internal Server Error".to_string(),
-        )
-    };
-
-    Ok(warp::reply::with_status(message, code))
+    let err_msg = format!("{:?}", err);
+    error!("{:?}", err);
+    Ok(warp::reply::json(&err_msg))
 }
 
 pub fn post_json() -> impl Filter<Extract = (PostCreateRequest,), Error = warp::Rejection> + Clone {

@@ -58,24 +58,20 @@ pub struct SignupRequest {
 pub struct PostCreateRequest {
     pub body: String,
     pub tags: Vec<String>,
-    pub token: String
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct LikeRequest {
     pub post_id: i64,
-    pub token: String
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct UserDeleteRequest {
-    pub token: String
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct UserUpgradeRequest {
     pub user_id: i64,
-    pub token: String
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -83,24 +79,20 @@ pub struct UserBanRequest {
     pub user_id: i64,
     pub ban_length: i64,
     pub ban_message: String,
-    pub token: String
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct UserUnbanRequest {
     pub user_id: i64,
-    pub token: String
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct DisplayNameChangeRequest {
     pub new_display_name: String,
-    pub token: String
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AddImageToPostRequest {
-    pub token: String,
     pub image_id: i64,
     pub post_id: i64
 }

@@ -117,6 +117,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path("post"))
         .and(warp::path("add-post"))
         .and(warp::path::end())
+        .and(warp::cookie::<String>("token"))
         .and(post_json())
         .and_then(post);
 
@@ -125,6 +126,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path("post"))
         .and(warp::path("react"))
         .and(warp::path::end())
+        .and(warp::cookie::<String>("token"))
         .and(react_json())
         .and_then(react);
 
@@ -149,6 +151,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path("post"))
         .and(warp::path("delete-user"))
         .and(warp::path::end())
+        .and(warp::cookie::<String>("token"))
         .and(delete_json())
         .and_then(delete_user);
 
@@ -158,6 +161,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path("post"))
         .and(warp::path("upgrade-user"))
         .and(warp::path::end())
+        .and(warp::cookie::<String>("token"))
         .and(upgrade_json())
         .and_then(upgrade_user);
 
@@ -167,6 +171,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path("post"))
         .and(warp::path("ban-user"))
         .and(warp::path::end())
+        .and(warp::cookie::<String>("token"))
         .and(ban_json())
         .and_then(ban_user);
 
@@ -176,6 +181,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path("post"))
         .and(warp::path("unban-user"))
         .and(warp::path::end())
+        .and(warp::cookie::<String>("token"))
         .and(unban_json())
         .and_then(unban_user);
 
@@ -185,17 +191,16 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path("change"))
         .and(warp::path("display-name"))
         .and(warp::path::end())
+        .and(warp::cookie::<String>("token"))
         .and(display_name_change_json())
         .and_then(change_display_name);
-
-    let image_auth = warp::header::<String>("auth");
 
     let upload_image = warp::post()
         .and(warp::path("api"))
         .and(warp::path("post"))
         .and(warp::path("upload"))
         .and(warp::path("image"))
-        .and(image_auth)
+        .and(warp::cookie::<String>("token"))
         .and(warp::multipart::form().max_length(25000000))
         .and_then(upload_image);
     
@@ -204,6 +209,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path("post"))
         .and(warp::path("add-image-to-post"))
         .and(warp::path::end())
+        .and(warp::cookie::<String>("token"))
         .and(image_to_post_add_json())
         .and_then(add_image_to_post);
 
@@ -236,8 +242,10 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
 async fn main() {
     tracing_subscriber::fmt::init();
     let cors = warp::cors().allow_any_origin()
-      .allow_methods(vec!["GET", "POST", "DELETE", "OPTIONS"])
-	    .allow_headers(vec!["content-type"]);
-    let routes = routes().with(cors).recover(handle_rejection); // lepiej to wywalic chyba bo z nim sa gorsze response code'y niz bez niego
+        .allow_methods(vec!["GET", "POST", "DELETE", "OPTIONS"])
+        .allow_headers(vec!["content-type", "Access-Control-Allow-Origin"])
+        .allow_credentials(true);
+
+    let routes = routes().with(cors);
     warp::serve(routes).run(([0, 0, 0, 0], 8000)).await;
 }

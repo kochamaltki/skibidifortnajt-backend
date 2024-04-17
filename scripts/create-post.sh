@@ -3,6 +3,7 @@
 path="$1/api/post/add-post"
 
 curl --location --request POST "$path" \
+--cookie "token=$5" \
 --header 'Content-Type: application/json' \
 --header 'Content-Type: text/plain' \
 --data-raw '{
@@ -10,6 +11,5 @@ curl --location --request POST "$path" \
 		"tags": [
 			"'"$3"'",
 			"'"$4"'"
-		],
-        "token": "'"$5"'"
+		]
 }'

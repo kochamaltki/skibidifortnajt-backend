@@ -243,7 +243,7 @@ async fn main() {
     tracing_subscriber::fmt::init();
     let cors = warp::cors().allow_any_origin()
         .allow_methods(vec!["GET", "POST", "DELETE", "OPTIONS"])
-        .allow_headers(vec!["content-type"])
+        .allow_headers(vec!["content-type", "Access-Control-Allow-Origin"])
         .allow_credentials(true);
 
     let routes = routes().with(cors);

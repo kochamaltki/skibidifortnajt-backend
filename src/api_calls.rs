@@ -558,9 +558,12 @@ pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Reje
 
             if passwd == request.passwd {
                 info!("User {} logged in", name);
-                let res = warp::reply::with_header("", "set-cookie", format!("token={}", get_token(user_id, is_admin)));
-                // let res = warp::reply::with_header(res, "Access-Control-Allow-Origin, ", "*");
-                Ok(res)
+                let token = get_token(user_id, is_admin);
+                Ok(warp::reply::with_header(
+                    token.clone(),
+                    "set-cookie",
+                    format!("token={}; Path=/; Max-Age=1209600; HttpOnly; Secure; SameSite=None; Partitioned", token),
+                ))
             } else {
                 info!("User {} failed to log in", name);
                 Err(warp::reject::custom(IncorrectPassword))
@@ -590,7 +593,7 @@ pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Re
         Ok(warp::reply::with_header(
             token.clone(),
             "set-cookie",
-            format!("token={}; Path=/; HttpOnly; Max-Age=1209600", token),
+            format!("token={}; Path=/; Max-Age=1209600; HttpOnly; Secure; SameSite=None; Partitioned", token),
         ))
     }
 }

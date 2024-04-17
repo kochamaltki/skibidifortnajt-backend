@@ -1,15 +1,15 @@
 use crate::database_functions::*;
 use crate::get_token::get_token;
 use crate::types::*;
-use crate::verify_token::{self, Claims};
+use crate::verify_token::{self};
 use bytes::BufMut;
 use futures::{StreamExt, TryStreamExt};
-use jsonwebtoken::TokenData;
+
 use tokio_rusqlite::params;
 use tracing::{error, info};
 use warp::filters::multipart::FormData;
 use warp::reject::{Reject, Rejection};
-use warp::reply::json;
+
 use warp::Filter;
 use std::time::SystemTime;
 
@@ -598,7 +598,7 @@ pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Re
     }
 }
 
-pub async fn delete_user(token: String, request: UserDeleteRequest) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn delete_user(token: String, _request: UserDeleteRequest) -> Result<impl warp::Reply, warp::Rejection> {
     info!("{}", token);
     let token = match verify_token::verify_token(token) {
         Ok(val) => val,

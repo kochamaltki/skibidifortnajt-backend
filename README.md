@@ -89,7 +89,12 @@
 #### /api/post/change/display-name
  - Post: DisplayNameChangeRequest
  - Effect: User's display name changes
- - Return: 200 ("Ban succesful") / 401 ("Wrong token") / 404 ("User not found")
+ - Return: 200 ("Change succesful") / 401 ("Wrong token") / 404 ("User not found")
+ - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
+#### /api/post/change/description
+ - Post: DescriptionChangeRequest
+ - Effect: User's description changes
+ - Return: 200 ("Change succesful") / 401 ("Wrong token") / 404 ("User not found")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/post/upload/image
  - Post: Image (max 25MB)
@@ -191,6 +196,12 @@ UserUnbanRequest {
 ```
 DisplayNameChangeRequest {
     new_display_name: string (max 64 chars)
+    token: string
+}
+```
+```
+DescriptionChangeRequest {
+    new_description: string (max 64 chars)
     token: string
 }
 ```

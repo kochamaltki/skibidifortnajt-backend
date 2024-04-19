@@ -195,6 +195,16 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(display_name_change_json())
         .and_then(change_display_name);
 
+    let change_description = warp::post()
+        .and(warp::path("api"))
+        .and(warp::path("post"))
+        .and(warp::path("change"))
+        .and(warp::path("description"))
+        .and(warp::path::end())
+        .and(warp::cookie::<String>("token"))
+        .and(description_change_json())
+        .and_then(change_description);
+
     let upload_image = warp::post()
         .and(warp::path("api"))
         .and(warp::path("post"))
@@ -231,6 +241,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .or(get_profile_by_id)
         .or(get_images_from_post)
         .or(change_display_name)
+        .or(change_description)
         .or(upload_image)
         .or(get_image)
         .or(add_image_to_post)

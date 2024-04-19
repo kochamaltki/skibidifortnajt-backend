@@ -92,6 +92,11 @@ pub struct DisplayNameChangeRequest {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct DescriptionChangeRequest {
+    pub new_description: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AddImageToPostRequest {
     pub image_id: i64,
     pub post_id: i64

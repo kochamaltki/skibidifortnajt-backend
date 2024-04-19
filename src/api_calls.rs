@@ -787,10 +787,7 @@ pub async fn unban_user(token: String, request: UserUnbanRequest) -> Result<impl
     }
 }
 
-pub async fn change_display_name(
-    token: String,
-    request: DisplayNameChangeRequest,
-) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn change_display_name(token: String, request: DisplayNameChangeRequest,) -> Result<impl warp::Reply, warp::Rejection> {
     let token = match verify_token::verify_token(token) {
         Ok(val) => val,
         Err(_) => {
@@ -834,6 +831,63 @@ pub async fn change_display_name(
         );
         add_upload_db(&connection, token.claims.uid, 1).await;
         let r = "Display name change successful";
+        Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::OK,
+        ))
+    } else {
+        let r = "User not found";
+        Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::NOT_FOUND,
+        ))
+    }
+}
+
+pub async fn change_description(token: String, request: DescriptionChangeRequest,) -> Result<impl warp::Reply, warp::Rejection> {
+    let token = match verify_token::verify_token(token) {
+        Ok(val) => val,
+        Err(_) => {
+            let r = "Wrong token";
+            return Ok(warp::reply::with_status(
+                warp::reply::json(&r),
+                warp::http::StatusCode::UNAUTHORIZED,
+            ));
+        }
+    };
+    
+    let connection = tokio_rusqlite::Connection::open("projekt-db")
+        .await
+        .unwrap();
+    let id = token.claims.uid;
+
+    if is_limited(&connection, token.claims.uid).await && token.claims.is_admin == 0 {
+        let r = "Ur too fast";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::FORBIDDEN,
+        ));
+    }
+
+    if check_user_id(&connection, id).await {
+        let change_query = "UPDATE users SET description= ? WHERE user_id = ?";
+        connection
+            .call(move |conn| {
+                let mut statement = conn.prepare(change_query).unwrap();
+                statement
+                    .execute(params![request.new_description, id])
+                    .unwrap();
+                Ok(0)
+            })
+            .await
+            .unwrap();
+
+        info!(
+            "Description changed for user with id: {}",
+            token.claims.uid
+        );
+        add_upload_db(&connection, token.claims.uid, 1).await;
+        let r = "Description change successful";
         Ok(warp::reply::with_status(
             warp::reply::json(&r),
             warp::http::StatusCode::OK,
@@ -1028,13 +1082,11 @@ pub fn signup_json() -> impl Filter<Extract = (SignupRequest,), Error = warp::Re
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
 
-pub fn delete_json() -> impl Filter<Extract = (UserDeleteRequest,), Error = warp::Rejection> + Clone
-{
+pub fn delete_json() -> impl Filter<Extract = (UserDeleteRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
 
-pub fn upgrade_json(
-) -> impl Filter<Extract = (UserUpgradeRequest,), Error = warp::Rejection> + Clone {
+pub fn upgrade_json() -> impl Filter<Extract = (UserUpgradeRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
 
@@ -1050,12 +1102,14 @@ pub fn react_json() -> impl Filter<Extract = (LikeRequest,), Error = warp::Rejec
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
 
-pub fn display_name_change_json(
-) -> impl Filter<Extract = (DisplayNameChangeRequest,), Error = warp::Rejection> + Clone {
+pub fn display_name_change_json() -> impl Filter<Extract = (DisplayNameChangeRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
 
-pub fn image_to_post_add_json(
-) -> impl Filter<Extract = (AddImageToPostRequest,), Error = warp::Rejection> + Clone {
+pub fn description_change_json() -> impl Filter<Extract = (DescriptionChangeRequest,), Error = warp::Rejection> + Clone {
+    warp::body::content_length_limit(1024 * 16).and(warp::body::json())
+}
+
+pub fn image_to_post_add_json() -> impl Filter<Extract = (AddImageToPostRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }

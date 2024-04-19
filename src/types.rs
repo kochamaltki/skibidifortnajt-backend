@@ -46,6 +46,7 @@ pub struct LikeCount {
 pub struct LoginRequest {
     pub user_name: String,
     pub passwd: String,
+    pub remember_password: bool
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

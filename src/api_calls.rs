@@ -559,10 +559,14 @@ pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Reje
             if passwd == request.passwd {
                 info!("User {} logged in", name);
                 let token = get_token(user_id, is_admin);
+                let mut cookie_params = "Path=/; HttpOnly; Secure; SameSite=None; Partitioned;".to_string();
+                if request.remember_password == true {
+                    cookie_params += "Max-Age=1209600;";
+                }
                 Ok(warp::reply::with_header(
                     token.clone(),
                     "set-cookie",
-                    format!("token={}; Path=/; Max-Age=1209600; HttpOnly; Secure; SameSite=None; Partitioned", token),
+                    format!("token={}; {}", token, cookie_params),
                 ))
             } else {
                 info!("User {} failed to log in", name);

@@ -74,7 +74,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and_then(react);
     
     let unreact = warp::post()
-        .and(warp::path!("api" / "post" / "react"))
+        .and(warp::path!("api" / "post" / "unreact"))
         .and(warp::cookie::<String>("token"))
         .and(unreact_json())
         .and_then(unreact);

@@ -1065,9 +1065,42 @@ pub async fn add_image_to_post(token: String, request: AddImageToPostRequest) ->
 }
 
 pub async fn handle_rejection(err: Rejection) -> std::result::Result<impl warp::Reply, std::convert::Infallible> {
-    let err_msg = format!("{:?}", err);
-    error!("{:?}", err);
-    Ok(warp::reply::json(&err_msg))
+    if err.is_not_found() {
+        Ok(warp::reply::with_status(
+            "Not found",
+            warp::http::StatusCode::NOT_FOUND,
+        ))
+    } else if err.find::<IncorrectPassword>().is_some() {
+        Ok(warp::reply::with_status(
+            "Incorrect password",
+            warp::http::StatusCode::UNAUTHORIZED,
+        ))
+    } else if err.find::<UserBanned>().is_some() {
+        Ok(warp::reply::with_status(
+            "User banned",
+            warp::http::StatusCode::UNAUTHORIZED,
+        ))
+    } else if err.find::<UserNotFound>().is_some() {
+        Ok(warp::reply::with_status(
+            "User not found",
+            warp::http::StatusCode::NOT_FOUND,
+        ))
+    } else if err.find::<UserAlereadyExists>().is_some() {
+        Ok(warp::reply::with_status(
+            "User already exists",
+            warp::http::StatusCode::BAD_REQUEST,
+        ))
+    } else if err.find::<WrongToken>().is_some() {
+        Ok(warp::reply::with_status(
+            "Wrong token",
+            warp::http::StatusCode::UNAUTHORIZED,
+        ))
+    } else {
+        Ok(warp::reply::with_status(
+            "Internal server error",
+            warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+        ))
+    }
 }
 
 pub fn post_json() -> impl Filter<Extract = (PostCreateRequest,), Error = warp::Rejection> + Clone {

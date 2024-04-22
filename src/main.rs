@@ -53,6 +53,11 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path!("api" / "get" / "like" / i64 / i64))
         .and_then(get_like_from_post_by_user);
 
+    let validate_cookie = warp::get()
+        .and(warp::path!("api" / "get" / "cookie"))
+        .and(warp::cookie::<String>("token"))
+        .and_then(validate_token);
+
     // let get_posts_from_search = warp::get()
     //     .and(warp::path!("api" / "get" / "posts" / "from-search" / String))
     //     .and_then(get_posts_from_search);
@@ -161,6 +166,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .or(get_image)
         .or(add_image_to_post)
         .or(unreact)
+        .or(validate_cookie)
         // .or(get_posts_from_search)
         // .or(get_users_from_search)
 }

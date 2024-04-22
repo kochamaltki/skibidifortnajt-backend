@@ -462,6 +462,27 @@ pub async fn get_images_from_post(post_id: i64) -> Result<impl warp::Reply, warp
     ))
 }
 
+pub async fn validate_token(token: String) -> Result<impl warp::Reply, warp::Rejection> {
+    match verify_token::verify_token(token) {
+        Ok(_) => {
+            let r = "Ok token"; 
+            return Ok(warp::reply::with_status(
+                warp::reply::json(&r),
+                warp::http::StatusCode::OK,
+            ));
+
+        },
+        Err(_) => {
+            let r = "Wrong token";
+            return Ok(warp::reply::with_status(
+                warp::reply::json(&r),
+                warp::http::StatusCode::UNAUTHORIZED,
+            ));
+        }
+    };
+
+}
+
 pub async fn post(token: String, request: PostCreateRequest) -> Result<impl warp::Reply, warp::Rejection> {
     info!("{}", token);
     let token = match verify_token::verify_token(token) {

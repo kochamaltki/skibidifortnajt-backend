@@ -17,7 +17,7 @@ pub async fn get_posts_by_user(user_id: i64) -> Result<impl warp::Reply, warp::R
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
         .unwrap();
-    let query = "SELECT * FROM posts WHERE user_id = ?";
+    let query = "SELECT posts.*, users.user_name FROM posts JOIN users ON users.user_id=posts.user_id WHERE users.user_id = ?";
 
     if !check_user_id(&connection, user_id).await {
         let r = "User not found";
@@ -47,6 +47,7 @@ pub async fn get_posts_by_user(user_id: i64) -> Result<impl warp::Reply, warp::R
                     date: row.get(2).unwrap(),
                     body: row.get(3).unwrap(),
                     likes: row.get(4).unwrap(),
+                    user_name: row.get(5).unwrap(),
                 });
             }
             Ok(post_vec)
@@ -78,10 +79,12 @@ pub async fn get_posts_by_tag(tag: String) -> Result<impl warp::Reply, warp::Rej
 
     let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64;
     let query = format!("
-        SELECT posts.post_id, posts.user_id, posts.date, posts.body 
+        SELECT posts.post_id, posts.user_id, posts.date, posts.body, users.user_id 
         FROM posts 
         JOIN posts_tags
         ON posts.post_id = posts_tags.post_id 
+        JOIN users
+        ON posts.user_id = users.user_id
         WHERE posts_tags.tag_id = ? 
         AND posts.user_id NOT IN 
         (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
@@ -97,7 +100,8 @@ pub async fn get_posts_by_tag(tag: String) -> Result<impl warp::Reply, warp::Rej
                     user_id: row.get(1).unwrap(),
                     date: row.get(2).unwrap(),
                     body: row.get(3).unwrap(),
-                    likes: row.get(4).unwrap(),
+                    likes: row.get(4).unwrap(), 
+                    user_name: row.get(5).unwrap()
                 });
             }
             Ok(post_vec)
@@ -118,7 +122,10 @@ pub async fn get_posts() -> Result<impl warp::Reply, warp::Rejection> {
         .unwrap();
     let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64;
     let query = format!("
-        SELECT * FROM posts
+        SELECT posts.*, users.user_name       
+        FROM posts
+        JOIN users
+        ON posts.user_id = users.user_id
         WHERE posts.user_id NOT IN
         (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})", timestamp);
 
@@ -134,6 +141,7 @@ pub async fn get_posts() -> Result<impl warp::Reply, warp::Rejection> {
                     date: row.get(2).unwrap(),
                     body: row.get(3).unwrap(),
                     likes: row.get(4).unwrap(),
+                    user_name: row.get(5).unwrap()
                 });
             }
             Ok(post_vec)
@@ -236,7 +244,10 @@ pub async fn get_post_by_id(post_id: i64) -> Result<impl warp::Reply, warp::Reje
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
         .unwrap();
-    let query = "SELECT * FROM posts WHERE post_id = ?";
+    let query = "SELECT posts.*, users.user_name FROM posts
+        JOIN users
+        ON posts.user_id = users.user_id
+        WHERE posts.post_id = ?";
 
     let post = connection
         .call(move |conn| {
@@ -250,6 +261,7 @@ pub async fn get_post_by_id(post_id: i64) -> Result<impl warp::Reply, warp::Reje
                     date: row.get(2).unwrap(),
                     body: row.get(3).unwrap(),
                     likes: row.get(4).unwrap(),
+                    user_name: row.get(5).unwrap()
                 };
             } else {
                 post = Post {
@@ -258,6 +270,7 @@ pub async fn get_post_by_id(post_id: i64) -> Result<impl warp::Reply, warp::Reje
                     date: 0,
                     body: "".to_string(),
                     likes: 0,
+                    user_name: "".to_string()
                 };
             }
             Ok(post)
@@ -505,6 +518,7 @@ pub async fn post(token: String, request: PostCreateRequest) -> Result<impl warp
             date: -1,
             body: request.body,
             likes: 0,
+            user_name: "".to_string()
         },
         request.tags,
     )

@@ -173,6 +173,6 @@ async fn main() {
         .allow_headers(vec!["content-type", "Access-Control-Allow-Origin"])
         .allow_credentials(true);
 
-    let routes = routes().with(cors);
+    let routes = routes().with(cors).recover(handle_rejection);
     warp::serve(routes).run(([0, 0, 0, 0], 8000)).await;
 }

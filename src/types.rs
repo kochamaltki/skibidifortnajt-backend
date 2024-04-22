@@ -6,7 +6,8 @@ pub struct Post {
     pub user_id: i64,
     pub date: i64,
     pub body: String,
-    pub likes: i64
+    pub likes: i64,
+    pub user_name: String
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

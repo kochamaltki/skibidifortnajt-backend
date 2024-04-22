@@ -188,6 +188,50 @@ pub async fn get_tags_from_post(post_id: i64) -> Result<impl warp::Reply, warp::
     ))
 }
 
+pub async fn get_like_from_post_by_user(post_id: i64, user_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
+    let connection = tokio_rusqlite::Connection::open("projekt-db")
+        .await
+        .unwrap();
+    let query = "
+        SELECT likes.user_id
+        WHERE likes.user_id=? AND likes.post_id=?
+    ";
+
+    if !check_post(&connection, post_id).await {
+        let r = "Post not found";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::NOT_FOUND,
+        ));
+    }
+
+    if !check_user_id(&connection, user_id).await {
+        let r = "User not found";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::NOT_FOUND,
+        ));
+    }
+
+    let exists = connection
+        .call(move |conn| {
+            let mut statement = conn.prepare(query).unwrap();
+            let mut rows = statement.query(params![user_id, post_id]).unwrap();
+            if let Ok(Some(_)) = rows.next() {
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        })
+        .await
+        .unwrap();
+
+    Ok(warp::reply::with_status(
+        warp::reply::json(&exists),
+        warp::http::StatusCode::OK,
+    ))
+}
+
 pub async fn get_post_by_id(post_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
@@ -524,6 +568,65 @@ pub async fn react(token: String, request: LikeRequest) -> Result<impl warp::Rep
         ))
     } else {
         let r = "Like added";
+        Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::OK,
+        ))
+    }
+}
+
+pub async fn unreact(token: String, request: UnlikeRequest) -> Result<impl warp::Reply, warp::Rejection> {
+    let token = match verify_token::verify_token(token) {
+        Ok(val) => val,
+        Err(_) => {
+            let r = "Wrong token";
+            return Ok(warp::reply::with_status(
+                warp::reply::json(&r),
+                warp::http::StatusCode::UNAUTHORIZED,
+            ));
+        }
+    };
+    
+    let connection = tokio_rusqlite::Connection::open("projekt-db")
+        .await
+        .unwrap();
+    
+    if is_limited(&connection, token.claims.uid).await && token.claims.is_admin == 0 {
+        let r = "Ur too fast";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::FORBIDDEN,
+        ));
+    }
+
+    if check_banned(&connection, token.claims.uid).await {
+        info!("User {} not allowed to react", token.claims.uid);
+        let r = "User is banned";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::UNAUTHORIZED,
+        ));
+    };
+
+    if !check_post(&connection, request.post_id).await {
+        let r = "Post not found";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::NOT_FOUND,
+        ));
+    }
+
+    add_upload_db(&connection, token.claims.uid, 1).await;
+    let existed = remove_like_db(&connection, token.claims.uid, request.post_id).await;
+
+    if existed {
+        let r = "Like doesn't exists";
+        Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::NOT_ACCEPTABLE,
+        ))
+    } else {
+        let r = "Like removed";
         Ok(warp::reply::with_status(
             warp::reply::json(&r),
             warp::http::StatusCode::OK,
@@ -1132,6 +1235,10 @@ pub fn unban_json() -> impl Filter<Extract = (UserUnbanRequest,), Error = warp::
 }
 
 pub fn react_json() -> impl Filter<Extract = (LikeRequest,), Error = warp::Rejection> + Clone {
+    warp::body::content_length_limit(1024 * 16).and(warp::body::json())
+}
+
+pub fn unreact_json() -> impl Filter<Extract = (UnlikeRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
 

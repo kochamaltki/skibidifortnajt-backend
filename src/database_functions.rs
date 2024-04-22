@@ -369,6 +369,31 @@ pub async fn add_like_db(connection: &Connection, user_id: i64, post_id: i64) ->
     false
 }
 
+pub async fn remove_like_db(connection: &Connection, user_id: i64, post_id: i64) -> bool {
+    let query = "DELETE FROM likes WHERE user_id=? AND post_id=?"; 
+    let update_query = "UPDATE posts SET likes=likes-1 WHERE post_id = ?";
+
+    if !check_like(connection, user_id, post_id).await {
+        info!("Like doesn't exists");
+        return true;
+    }
+
+    connection.call(move |conn| {
+        let mut statement = conn.prepare(query).unwrap();
+        statement.execute(params![user_id, post_id]).unwrap();
+        Ok(0)
+    }).await.unwrap();
+    
+    connection.call(move |conn| {
+        let mut statement = conn.prepare(update_query).unwrap();
+        statement.execute(params![post_id]).unwrap();
+        Ok(0)
+    }).await.unwrap();
+
+    info!("Like added for post {} by user {}", post_id, user_id);
+    false
+}
+
 pub async fn max_image_id(connection: &Connection) -> i64 {
     let query = "SELECT MAX(image_id) FROM images";
     connection.call(move |conn| {

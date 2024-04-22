@@ -66,6 +66,11 @@ pub struct LikeRequest {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct UnlikeRequest {
+    pub post_id: i64,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct UserDeleteRequest {
 }
 

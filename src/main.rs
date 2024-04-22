@@ -48,6 +48,10 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
     let get_image = warp::get()
         .and(warp::path!("api" / "get" / "image" / ..))
         .and(warp::fs::dir("./media/images"));
+    
+    let get_like_from_post_by_user = warp::get()
+        .and(warp::path!("api" / "get" / "like" / i64 / i64))
+        .and_then(get_like_from_post_by_user);
 
     // let get_posts_from_search = warp::get()
     //     .and(warp::path!("api" / "get" / "posts" / "from-search" / String))
@@ -68,6 +72,12 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::cookie::<String>("token"))
         .and(react_json())
         .and_then(react);
+    
+    let unreact = warp::post()
+        .and(warp::path!("api" / "post" / "react"))
+        .and(warp::cookie::<String>("token"))
+        .and(unreact_json())
+        .and_then(unreact);
 
     let login = warp::post()
         .and(warp::path!("api" / "post" / "login")) 
@@ -144,11 +154,13 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .or(react)
         .or(get_profile_by_id)
         .or(get_images_from_post)
+        .or(get_like_from_post_by_user)
         .or(change_display_name)
         .or(change_description)
         .or(upload_image)
         .or(get_image)
         .or(add_image_to_post)
+        .or(unreact)
         // .or(get_posts_from_search)
         // .or(get_users_from_search)
 }

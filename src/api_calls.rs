@@ -193,7 +193,7 @@ pub async fn get_like_from_post_by_user(post_id: i64, user_id: i64) -> Result<im
         .await
         .unwrap();
     let query = "
-        SELECT likes.user_id
+        SELECT likes.user_id FROM likes
         WHERE likes.user_id=? AND likes.post_id=?
     ";
 

@@ -55,7 +55,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
 
     let validate_cookie = warp::get()
         .and(warp::path!("api" / "get" / "cookie"))
-        .and(warp::cookie::<String>("token"))
+        .and(warp::cookie::optional::<String>("token"))
         .and_then(validate_token);
 
     // let get_posts_from_search = warp::get()

@@ -462,25 +462,35 @@ pub async fn get_images_from_post(post_id: i64) -> Result<impl warp::Reply, warp
     ))
 }
 
-pub async fn validate_token(token: String) -> Result<impl warp::Reply, warp::Rejection> {
-    match verify_token::verify_token(token) {
-        Ok(val) => {
-            let r = val.claims.uid; 
-            return Ok(warp::reply::with_status(
-                warp::reply::json(&r),
-                warp::http::StatusCode::OK,
-            ));
+pub async fn validate_token(token: Option<String>) -> Result<impl warp::Reply, warp::Rejection> {
+ match token {
+     Some(token) => {
+         match verify_token::verify_token(token) {
+             Ok(val) => {
+                 let r = val.claims.uid; 
+                 Ok(warp::reply::with_status(
+                         warp::reply::json(&r),
+                         warp::http::StatusCode::OK,
+                         ))
 
-        },
-        Err(_) => {
-            let r = "Wrong token";
-            return Ok(warp::reply::with_status(
-                warp::reply::json(&r),
-                warp::http::StatusCode::UNAUTHORIZED,
-            ));
-        }
-    };
-
+             },
+             Err(_) => {
+                 let r = "Wrong token";
+                 Ok(warp::reply::with_status(
+                         warp::reply::json(&r),
+                         warp::http::StatusCode::UNAUTHORIZED,
+                         ))
+             }
+         }
+     },
+     None => {
+         let r = "No token";
+         Ok(warp::reply::with_status(
+                 warp::reply::json(&r),
+                 warp::http::StatusCode::UNAUTHORIZED,
+                 ))
+     }
+ }
 }
 
 pub async fn post(token: String, request: PostCreateRequest) -> Result<impl warp::Reply, warp::Rejection> {

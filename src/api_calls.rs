@@ -725,6 +725,22 @@ pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Reje
     }
 }
 
+pub async fn logout(token: String) -> Result<impl warp::Reply, warp::Rejection> {
+    match verify_token::verify_token(token) {
+        Ok(_) => {},
+        Err(_) => {
+            return Err(warp::reject::custom(WrongToken));
+        }
+    };
+
+    let cookie_params = "Path=/; HttpOnly; Secure; SameSite=None; Partitioned; Max-Age=0".to_string();
+    Ok(warp::reply::with_header(
+        "Logout",
+        "set-cookie",
+        format!("token=\"\"; {}", cookie_params),
+    ))
+}
+
 #[derive(Debug)]
 struct UserAlereadyExists;
 impl Reject for UserAlereadyExists {}

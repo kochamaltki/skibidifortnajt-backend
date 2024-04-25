@@ -88,6 +88,11 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path!("api" / "post" / "login")) 
         .and(login_json())
         .and_then(login);
+    
+    let logout = warp::post()
+        .and(warp::path!("api" / "post" / "logout")) 
+        .and(warp::cookie::<String>("token"))
+        .and_then(logout);
 
     let signup = warp::post()
         .and(warp::path!("api" / "post" / "signup"))
@@ -167,6 +172,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .or(add_image_to_post)
         .or(unreact)
         .or(validate_cookie)
+        .or(logout)
         // .or(get_posts_from_search)
         // .or(get_users_from_search)
 }

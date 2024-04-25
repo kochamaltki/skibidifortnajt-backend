@@ -147,12 +147,14 @@ LikeCount {
 LoginRequest {
     user_name: string (max 64 chars)
     passwd: string (max 128 chars)
+    remember_password: bool
 }
 ```
 ```
 SignupRequest {
     user_name: string (max 64 chars)
     passwd: string (max 128 chars)
+    remember_password: bool
 }
 ```
 ```

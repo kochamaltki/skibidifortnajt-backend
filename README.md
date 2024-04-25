@@ -44,55 +44,119 @@
  #### /api/get/image/{image-name}
  - Get: Image
 #### /api/post/add-post
- - Post: PostCreateRequest
+ - Post: 
+```
+PostCreateRequest {
+    body: string (max 2048 chars)
+    tags: Vec<string (max 64 chars)>
+    token: string
+}
+```
  - Effect: Adds a post to the db
  - Return: 201 ("Post created") / 401 ("Wrong token" / "User is banned") / 404 ("User not found")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/post/react
- - Post: LikeRequest
+ - Post: 
+```
+LikeRequest {
+    post_id: i64
+    token: string
+}
+```
  - Effects: Adds like to a post
  - Return: 200 ("Like added") / 406 ("Like already exists")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/post/login
- - Post: LoginRequest
+ - Post: 
+```
+LoginRequest {
+    user_name: string (max 64 chars)
+    passwd: string (max 128 chars)
+    remember_password: bool
+}
+```
  - Effect: Login ig
  - Return: 200 (token) / 401 ("Password incorrect") / 404 ("User not found")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/post/signup
- - Post: SignupRequest
+ - Post: 
+```
+SignupRequest {
+    user_name: string (max 64 chars)
+    passwd: string (max 128 chars)
+    remember_password: bool
+}
+```
  - Effect: Creates a user with given name and password
  - Return: 201 (token) / 409 ("User already exists")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/post/delete-user
- - Post: UserDeleteRequest
+ - Post: 
+```
+UserDeleteRequest {
+    token: string
+}
+```
  - Effect: Deletes a user
  - Return: 200 ("User deleted") / 401 ("Wrong token") / 404 ("User not found")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/admin/post/upgrade-user
- - Post: UserUpgradeRequest
+ - Post: 
+```
+UserUpgradeRequest {
+    user_id: i64
+    token: string
+}
+```
  - Effect: User with given id becomes an admin
  - Note: Token must belong to an admin
  - Return: 200 ("Upgrade succesful") / 401 ("User is not admin" / "Wrong token") / 404 ("User not found")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/admin/post/ban-user
- - Post: UserBanRequest
+ - Post: 
+```
+UserBanRequest {
+    user_id: i64
+    ban_length: i64,
+    ban_message: string,
+    token: string
+}
+```
  - Effect: User with given id is banned
  - Note: Token must belong to an admin
  - Return: 200 ("Ban succesful") / 401 ("User is not admin" / "Wrong token") / 404 ("User not found")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/admin/post/unban-user
- - Post: UserUnbanRequest
+ - Post: 
+```
+UserUnbanRequest {
+    user_id: i64,
+    token: string
+}
+```
  - Effect: User with given id is unbanned
  - Note: Token must belong to an admin
  - Return: 200 ("Unban succesful") / 401 ("User is not admin" / "Wrong token") / 404 ("User not found")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/post/change/display-name
- - Post: DisplayNameChangeRequest
+ - Post: 
+```
+DisplayNameChangeRequest {
+    new_display_name: string (max 64 chars)
+    token: string
+}
+```
  - Effect: User's display name changes
  - Return: 200 ("Change succesful") / 401 ("Wrong token") / 404 ("User not found")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/post/change/description
- - Post: DescriptionChangeRequest
+ - Post: 
+```
+DescriptionChangeRequest {
+    new_description: string (max 64 chars)
+    token: string
+}
+```
  - Effect: User's description changes
  - Return: 200 ("Change succesful") / 401 ("Wrong token") / 404 ("User not found")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
@@ -150,68 +214,14 @@ LikeCount {
     like_count: i64
 }
 ```
-```
-LoginRequest {
-    user_name: string (max 64 chars)
-    passwd: string (max 128 chars)
-    remember_password: bool
-}
-```
-```
-SignupRequest {
-    user_name: string (max 64 chars)
-    passwd: string (max 128 chars)
-    remember_password: bool
-}
-```
-```
-PostCreateRequest {
-    body: string (max 2048 chars)
-    tags: Vec<string (max 64 chars)>
-    token: string
-}
-```
-```
-LikeRequest {
-    post_id: i64
-    token: string
-}
-```
-```
-UserDeleteRequest {
-    token: string
-}
-```
-```
-UserUpgradeRequest {
-    user_id: i64
-    token: string
-}
-```
-```
-UserBanRequest {
-    user_id: i64
-    ban_length: i64,
-    ban_message: string,
-    token: string
-}
-```
-```
-UserUnbanRequest {
-    user_id: i64,
-    token: string
-}
-```
-```
-DisplayNameChangeRequest {
-    new_display_name: string (max 64 chars)
-    token: string
-}
-```
-```
-DescriptionChangeRequest {
-    new_description: string (max 64 chars)
-    token: string
-}
-```
+
+
+
+
+
+
+
+
+
+
 

@@ -101,7 +101,14 @@
  - Return: 200 (image-id) / 400 ("Invalid image format" / "File type error" / ) / 401 ("Wrong token") / 500 ("File read error")
  - Headers: 'Content-Type: multipart/form-data', 'auth: {user_token}'
 #### /api/post/add-image-to-post
- - Post: AddImageToPostRequest
+ - Post:
+```
+AddImageToPostRequest {
+    token: string,
+    image_id: i64,
+    post_id: i64
+}
+```
  - Effect: Image is added to post
  - Return: 200 ("Image added to post") / 400 ("Image already added to this post") / 401 ("Wrong token" / "User not authorized") / 404 ("Image not found" / "Post not found")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
@@ -207,10 +214,4 @@ DescriptionChangeRequest {
     token: string
 }
 ```
-```
-AddImageToPostRequest {
-    token: string,
-    image_id: i64,
-    post_id: i64
-}
-```
+

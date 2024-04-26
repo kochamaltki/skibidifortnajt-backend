@@ -146,6 +146,12 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::cookie::<String>("token"))
         .and(image_to_post_add_json())
         .and_then(add_image_to_post);
+    
+    let set_pfp = warp::post()
+        .and(warp::path!("api" / "post" / "set-pfp"))
+        .and(warp::cookie::<String>("token"))
+        .and(set_pfp_json())
+        .and_then(set_pfp);
 
     get_posts_by_user
         .or(post)
@@ -173,6 +179,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .or(unreact)
         .or(validate_cookie)
         .or(logout)
+        .or(set_pfp)
         // .or(get_posts_from_search)
         // .or(get_users_from_search)
 }

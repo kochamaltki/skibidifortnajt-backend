@@ -294,7 +294,7 @@ pub async fn add_user_db(connection: &Connection, request: SignupRequest) -> Str
     let user_id = max_user_id(connection).await.unwrap();
     let user_name = request.user_name.clone();
     
-    let signup_query = "INSERT INTO users VALUES (:user_id, :user_name, :user_name, '', :passwd, 0)";
+    let signup_query = "INSERT INTO users VALUES (:user_id, :user_name, :user_name, '', :passwd, 0, '')";
     connection.call(move |conn| {
         let mut statement = conn.prepare(signup_query).unwrap();
         statement.execute(params![user_id, request.user_name, request.passwd]).unwrap();
@@ -435,6 +435,18 @@ pub async fn assign_image_to_post_db(connection: &Connection, post_id: i64, imag
     connection.call(move |conn| {
         let mut statement = conn.prepare(image_query).unwrap();
         statement.execute(params![post_id, image_id]).unwrap();
+        Ok(0)
+    }).await.unwrap();
+    
+    Ok(())
+}
+
+pub async fn assign_image_to_user(connection: &Connection, user_id: i64, image_id: i64) -> Result<(), &str> {
+    let image_query = "UPDATE users SET pfp_id=? WHERE user_id=?";
+
+    connection.call(move |conn| {
+        let mut statement = conn.prepare(image_query).unwrap();
+        statement.execute(params![image_id, user_id]).unwrap();
         Ok(0)
     }).await.unwrap();
     

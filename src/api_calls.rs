@@ -351,8 +351,8 @@ pub async fn get_profile_by_id(user_id: i64) -> Result<impl warp::Reply, warp::R
             let mut rows = statement.query(params![user_id]).unwrap();
             let profile: Profile;
             if let Ok(Some(row)) = rows.next() {
-                let pfp = match row.get(4) {
-                    Ok(val) => val,
+                let pfp = match row.get::<_, String>(4) {
+                    Ok(val) => format!("pfp_{}", val),
                     Err(_) => "".to_string()
                 };
                 profile = Profile {
@@ -1200,9 +1200,15 @@ pub async fn upload_image(
             };
             let image_uuid = uuid::Uuid::new_v4().to_string();
             let file_name = format!("./media/images/{}.{}", image_uuid, file_ending);
+            let pfp_file_name = format!("./media/images/pfp_{}.{}", image_uuid, file_ending);
+
             match add_image_db(&connection, format!("{}.{}", image_uuid, file_ending)).await {
                 Ok(val) => {
-                    tokio::fs::write(&file_name, value).await.map_err(|e| {
+                    tokio::fs::write(&file_name, value.clone()).await.map_err(|e| {
+                        error!("error writing file: {}", e);
+                        warp::reject::reject()
+                    })?;
+                    tokio::fs::write(&pfp_file_name, value).await.map_err(|e| {
                         error!("error writing file: {}", e);
                         warp::reject::reject()
                     })?;

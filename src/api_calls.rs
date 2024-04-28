@@ -1,6 +1,5 @@
 use crate::database_functions::*;
 use crate::types::*;
-// use crate::verify_token::{self};
 use crate::auth::*;
 use bytes::BufMut;
 use futures::{StreamExt, TryStreamExt};

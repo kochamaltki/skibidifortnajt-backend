@@ -15,7 +15,8 @@ pub struct Profile {
     pub user_id: i64,
     pub user_name: String,
     pub display_name: String,
-    pub description: String 
+    pub description: String,
+    pub pfp_image: String
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -108,4 +109,10 @@ pub struct DescriptionChangeRequest {
 pub struct AddImageToPostRequest {
     pub image_id: i64,
     pub post_id: i64
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct SetPFPRequest {
+    pub image_id: i64,
+    pub user_id: i64
 }

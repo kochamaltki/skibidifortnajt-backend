@@ -10,8 +10,8 @@ use tracing::{error, info};
 use warp::filters::multipart::FormData;
 use warp::reject::{Reject, Rejection};
 
-use warp::Filter;
 use std::time::SystemTime;
+use warp::Filter;
 
 pub async fn get_posts_by_user(user_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = tokio_rusqlite::Connection::open("projekt-db")
@@ -77,8 +77,12 @@ pub async fn get_posts_by_tag(tag: String) -> Result<impl warp::Reply, warp::Rej
         }
     };
 
-    let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64;
-    let query = format!("
+    let timestamp = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+    let query = format!(
+        "
         SELECT posts.post_id, posts.user_id, posts.date, posts.body, users.user_id 
         FROM posts 
         JOIN posts_tags
@@ -88,7 +92,9 @@ pub async fn get_posts_by_tag(tag: String) -> Result<impl warp::Reply, warp::Rej
         WHERE posts_tags.tag_id = ? 
         AND posts.user_id NOT IN 
         (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
-    ", timestamp);
+    ",
+        timestamp
+    );
     let post_list = connection
         .call(move |conn| {
             let mut statement = conn.prepare(&query).unwrap();
@@ -100,8 +106,8 @@ pub async fn get_posts_by_tag(tag: String) -> Result<impl warp::Reply, warp::Rej
                     user_id: row.get(1).unwrap(),
                     date: row.get(2).unwrap(),
                     body: row.get(3).unwrap(),
-                    likes: row.get(4).unwrap(), 
-                    user_name: row.get(5).unwrap()
+                    likes: row.get(4).unwrap(),
+                    user_name: row.get(5).unwrap(),
                 });
             }
             Ok(post_vec)
@@ -120,14 +126,20 @@ pub async fn get_posts() -> Result<impl warp::Reply, warp::Rejection> {
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
         .unwrap();
-    let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64;
-    let query = format!("
+    let timestamp = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+    let query = format!(
+        "
         SELECT posts.*, users.user_name       
         FROM posts
         JOIN users
         ON posts.user_id = users.user_id
         WHERE posts.user_id NOT IN
-        (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})", timestamp);
+        (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})",
+        timestamp
+    );
 
     let post_list = connection
         .call(move |conn| {
@@ -141,7 +153,7 @@ pub async fn get_posts() -> Result<impl warp::Reply, warp::Rejection> {
                     date: row.get(2).unwrap(),
                     body: row.get(3).unwrap(),
                     likes: row.get(4).unwrap(),
-                    user_name: row.get(5).unwrap()
+                    user_name: row.get(5).unwrap(),
                 });
             }
             Ok(post_vec)
@@ -196,7 +208,10 @@ pub async fn get_tags_from_post(post_id: i64) -> Result<impl warp::Reply, warp::
     ))
 }
 
-pub async fn get_like_from_post_by_user(post_id: i64, user_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn get_like_from_post_by_user(
+    post_id: i64,
+    user_id: i64,
+) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
         .unwrap();
@@ -261,7 +276,7 @@ pub async fn get_post_by_id(post_id: i64) -> Result<impl warp::Reply, warp::Reje
                     date: row.get(2).unwrap(),
                     body: row.get(3).unwrap(),
                     likes: row.get(4).unwrap(),
-                    user_name: row.get(5).unwrap()
+                    user_name: row.get(5).unwrap(),
                 };
             } else {
                 post = Post {
@@ -270,7 +285,7 @@ pub async fn get_post_by_id(post_id: i64) -> Result<impl warp::Reply, warp::Reje
                     date: 0,
                     body: "".to_string(),
                     likes: 0,
-                    user_name: "".to_string()
+                    user_name: "".to_string(),
                 };
             }
             Ok(post)
@@ -301,7 +316,6 @@ pub async fn get_post_by_id(post_id: i64) -> Result<impl warp::Reply, warp::Reje
 }
 
 pub async fn get_profile_by_id(user_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
-
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
         .unwrap();
@@ -314,8 +328,14 @@ pub async fn get_profile_by_id(user_id: i64) -> Result<impl warp::Reply, warp::R
         ));
     }
 
-    
-    let query = "SELECT user_id, user_name, display_name, description FROM users WHERE user_id = ?";
+    let query = "
+        SELECT users.user_id, users.user_name, 
+               users.display_name, users.description,
+               images.image_file
+        FROM users 
+        JOIN images ON images.image_id=users.pfp_id
+        WHERE users.user_id = ?
+    ";
 
     if !check_user_id(&connection, user_id).await {
         let r = "User not found";
@@ -331,11 +351,16 @@ pub async fn get_profile_by_id(user_id: i64) -> Result<impl warp::Reply, warp::R
             let mut rows = statement.query(params![user_id]).unwrap();
             let profile: Profile;
             if let Ok(Some(row)) = rows.next() {
+                let pfp = match row.get::<_, String>(4) {
+                    Ok(val) => format!("pfp_{}", val),
+                    Err(_) => "".to_string()
+                };
                 profile = Profile {
                     user_id: row.get(0).unwrap(),
                     user_name: row.get(1).unwrap(),
                     display_name: row.get(2).unwrap(),
                     description: row.get(3).unwrap(),
+                    pfp_image: pfp
                 };
             } else {
                 profile = Profile {
@@ -343,6 +368,7 @@ pub async fn get_profile_by_id(user_id: i64) -> Result<impl warp::Reply, warp::R
                     user_name: "".to_string(),
                     display_name: "".to_string(),
                     description: "".to_string(),
+                    pfp_image: "".to_string()
                 };
             }
             Ok(profile)
@@ -431,7 +457,9 @@ pub async fn get_user_id(user_name: String) -> Result<impl warp::Reply, warp::Re
 }
 
 pub async fn get_images_from_post(post_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
-    let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
+    let connection = tokio_rusqlite::Connection::open("projekt-db")
+        .await
+        .unwrap();
     let query = "SELECT image_file 
                  FROM posts_images 
                  JOIN images ON images.image_id=posts_images.image_id 
@@ -445,56 +473,58 @@ pub async fn get_images_from_post(post_id: i64) -> Result<impl warp::Reply, warp
         ));
     }
 
-    let images = connection.call(move |conn| {
-        let mut statement = conn.prepare(query).unwrap();
-        let mut rows = statement.query(params![post_id]).unwrap();
-        let mut image_ids: Vec<String> = Vec::new();
-        while let Ok(Some(row)) = rows.next() {
-            image_ids.push(row.get::<_, String>(0).unwrap());
-        }
-        Ok(image_ids)
-    }).await.unwrap();
+    let images = connection
+        .call(move |conn| {
+            let mut statement = conn.prepare(query).unwrap();
+            let mut rows = statement.query(params![post_id]).unwrap();
+            let mut image_ids: Vec<String> = Vec::new();
+            while let Ok(Some(row)) = rows.next() {
+                image_ids.push(row.get::<_, String>(0).unwrap());
+            }
+            Ok(image_ids)
+        })
+        .await
+        .unwrap();
 
     let image_id_list = ImageList { image_list: images };
     Ok(warp::reply::with_status(
         warp::reply::json(&image_id_list),
-        warp::http::StatusCode::OK
+        warp::http::StatusCode::OK,
     ))
 }
 
 pub async fn validate_token(token: Option<String>) -> Result<impl warp::Reply, warp::Rejection> {
- match token {
-     Some(token) => {
-         match verify_token::verify_token(token) {
-             Ok(val) => {
-                 let r = val.claims.uid; 
-                 Ok(warp::reply::with_status(
-                         warp::reply::json(&r),
-                         warp::http::StatusCode::OK,
-                         ))
-
-             },
-             Err(_) => {
-                 let r = "Wrong token";
-                 Ok(warp::reply::with_status(
-                         warp::reply::json(&r),
-                         warp::http::StatusCode::UNAUTHORIZED,
-                         ))
-             }
-         }
-     },
-     None => {
-         let r = "No token";
-         Ok(warp::reply::with_status(
-                 warp::reply::json(&r),
-                 warp::http::StatusCode::UNAUTHORIZED,
-                 ))
-     }
- }
+    match token {
+        Some(token) => match verify_token::verify_token(token) {
+            Ok(val) => {
+                let r = val.claims.uid;
+                Ok(warp::reply::with_status(
+                    warp::reply::json(&r),
+                    warp::http::StatusCode::OK,
+                ))
+            }
+            Err(_) => {
+                let r = "Wrong token";
+                Ok(warp::reply::with_status(
+                    warp::reply::json(&r),
+                    warp::http::StatusCode::UNAUTHORIZED,
+                ))
+            }
+        },
+        None => {
+            let r = "No token";
+            Ok(warp::reply::with_status(
+                warp::reply::json(&r),
+                warp::http::StatusCode::UNAUTHORIZED,
+            ))
+        }
+    }
 }
 
-pub async fn post(token: String, request: PostCreateRequest) -> Result<impl warp::Reply, warp::Rejection> {
-    info!("{}", token);
+pub async fn post(
+    token: String,
+    request: PostCreateRequest,
+) -> Result<impl warp::Reply, warp::Rejection> {
     let token = match verify_token::verify_token(token) {
         Ok(val) => val,
         Err(_) => {
@@ -506,13 +536,12 @@ pub async fn post(token: String, request: PostCreateRequest) -> Result<impl warp
             ));
         }
     };
-    info!("dghfghghfghf");
 
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
         .unwrap();
     let id = token.claims.uid;
-    
+
     if is_limited(&connection, token.claims.uid).await && token.claims.is_admin == 0 {
         let r = "Ur too fast";
         return Ok(warp::reply::with_status(
@@ -549,7 +578,7 @@ pub async fn post(token: String, request: PostCreateRequest) -> Result<impl warp
             date: -1,
             body: request.body,
             likes: 0,
-            user_name: "".to_string()
+            user_name: "".to_string(),
         },
         request.tags,
     )
@@ -561,7 +590,10 @@ pub async fn post(token: String, request: PostCreateRequest) -> Result<impl warp
     ))
 }
 
-pub async fn react(token: String, request: LikeRequest) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn react(
+    token: String,
+    request: LikeRequest,
+) -> Result<impl warp::Reply, warp::Rejection> {
     let token = match verify_token::verify_token(token) {
         Ok(val) => val,
         Err(_) => {
@@ -572,11 +604,11 @@ pub async fn react(token: String, request: LikeRequest) -> Result<impl warp::Rep
             ));
         }
     };
-    
+
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
         .unwrap();
-    
+
     if is_limited(&connection, token.claims.uid).await && token.claims.is_admin == 0 {
         let r = "Ur too fast";
         return Ok(warp::reply::with_status(
@@ -620,7 +652,10 @@ pub async fn react(token: String, request: LikeRequest) -> Result<impl warp::Rep
     }
 }
 
-pub async fn unreact(token: String, request: UnlikeRequest) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn unreact(
+    token: String,
+    request: UnlikeRequest,
+) -> Result<impl warp::Reply, warp::Rejection> {
     let token = match verify_token::verify_token(token) {
         Ok(val) => val,
         Err(_) => {
@@ -631,11 +666,11 @@ pub async fn unreact(token: String, request: UnlikeRequest) -> Result<impl warp:
             ));
         }
     };
-    
+
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
         .unwrap();
-    
+
     if is_limited(&connection, token.claims.uid).await && token.claims.is_admin == 0 {
         let r = "Ur too fast";
         return Ok(warp::reply::with_status(
@@ -696,7 +731,7 @@ pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Reje
         .await
         .unwrap();
     let name = request.user_name;
-    
+
     match get_id_passwd_adm(&connection, name.clone()).await {
         Ok((user_id, passwd, is_admin)) => {
             if check_banned(&connection, user_id).await {
@@ -707,7 +742,8 @@ pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Reje
             if passwd == request.passwd {
                 info!("User {} logged in", name);
                 let token = get_token(user_id, is_admin);
-                let mut cookie_params = "Path=/; HttpOnly; Secure; SameSite=None; Partitioned;".to_string();
+                let mut cookie_params =
+                    "Path=/; HttpOnly; Secure; SameSite=None; Partitioned;".to_string();
                 if request.remember_password == true {
                     cookie_params += "Max-Age=1209600;";
                 }
@@ -727,13 +763,14 @@ pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Reje
 
 pub async fn logout(token: String) -> Result<impl warp::Reply, warp::Rejection> {
     match verify_token::verify_token(token) {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(_) => {
             return Err(warp::reject::custom(WrongToken));
         }
     };
 
-    let cookie_params = "Path=/; HttpOnly; Secure; SameSite=None; Partitioned; Max-Age=0".to_string();
+    let cookie_params =
+        "Path=/; HttpOnly; Secure; SameSite=None; Partitioned; Max-Age=0".to_string();
     Ok(warp::reply::with_header(
         "Logout",
         "set-cookie",
@@ -770,7 +807,10 @@ pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Re
     }
 }
 
-pub async fn delete_user(token: String, _request: UserDeleteRequest) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn delete_user(
+    token: String,
+    _request: UserDeleteRequest,
+) -> Result<impl warp::Reply, warp::Rejection> {
     info!("{}", token);
     let token = match verify_token::verify_token(token) {
         Ok(val) => val,
@@ -805,7 +845,10 @@ pub async fn delete_user(token: String, _request: UserDeleteRequest) -> Result<i
     }
 }
 
-pub async fn upgrade_user(token: String, request: UserUpgradeRequest) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn upgrade_user(
+    token: String,
+    request: UserUpgradeRequest,
+) -> Result<impl warp::Reply, warp::Rejection> {
     let token = match verify_token::verify_token(token) {
         Ok(val) => val,
         Err(_) => {
@@ -855,7 +898,10 @@ pub async fn upgrade_user(token: String, request: UserUpgradeRequest) -> Result<
     }
 }
 
-pub async fn ban_user(token: String, request: UserBanRequest) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn ban_user(
+    token: String,
+    request: UserBanRequest,
+) -> Result<impl warp::Reply, warp::Rejection> {
     let token = match verify_token::verify_token(token) {
         Ok(val) => val,
         Err(_) => {
@@ -879,19 +925,23 @@ pub async fn ban_user(token: String, request: UserBanRequest) -> Result<impl war
         .await
         .unwrap();
     let id = request.user_id;
-    let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64;
+    let timestamp = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
     let expiration = timestamp + request.ban_length;
     if check_user_id(&connection, id).await {
         let ban_query = "INSERT INTO bans VALUES (?, ?, ?, ?, ?)";
         connection
             .call(move |conn| {
                 let mut statement = conn.prepare(ban_query).unwrap();
-                statement.execute(params![id, timestamp, expiration, request.ban_message, 1]).unwrap();
+                statement
+                    .execute(params![id, timestamp, expiration, request.ban_message, 1])
+                    .unwrap();
                 Ok(0)
             })
             .await
             .unwrap();
-
 
         info!("User banned with id: {}", request.user_id);
         let r = "Ban successful";
@@ -908,7 +958,10 @@ pub async fn ban_user(token: String, request: UserBanRequest) -> Result<impl war
     }
 }
 
-pub async fn unban_user(token: String, request: UserUnbanRequest) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn unban_user(
+    token: String,
+    request: UserUnbanRequest,
+) -> Result<impl warp::Reply, warp::Rejection> {
     let token = match verify_token::verify_token(token) {
         Ok(val) => val,
         Err(_) => {
@@ -943,7 +996,6 @@ pub async fn unban_user(token: String, request: UserUnbanRequest) -> Result<impl
             .await
             .unwrap();
 
-
         info!("User unbanned with id: {}", request.user_id);
         let r = "Unban successful";
         Ok(warp::reply::with_status(
@@ -959,7 +1011,10 @@ pub async fn unban_user(token: String, request: UserUnbanRequest) -> Result<impl
     }
 }
 
-pub async fn change_display_name(token: String, request: DisplayNameChangeRequest,) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn change_display_name(
+    token: String,
+    request: DisplayNameChangeRequest,
+) -> Result<impl warp::Reply, warp::Rejection> {
     let token = match verify_token::verify_token(token) {
         Ok(val) => val,
         Err(_) => {
@@ -970,7 +1025,7 @@ pub async fn change_display_name(token: String, request: DisplayNameChangeReques
             ));
         }
     };
-    
+
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
         .unwrap();
@@ -1016,7 +1071,10 @@ pub async fn change_display_name(token: String, request: DisplayNameChangeReques
     }
 }
 
-pub async fn change_description(token: String, request: DescriptionChangeRequest,) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn change_description(
+    token: String,
+    request: DescriptionChangeRequest,
+) -> Result<impl warp::Reply, warp::Rejection> {
     let token = match verify_token::verify_token(token) {
         Ok(val) => val,
         Err(_) => {
@@ -1027,7 +1085,7 @@ pub async fn change_description(token: String, request: DescriptionChangeRequest
             ));
         }
     };
-    
+
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
         .unwrap();
@@ -1054,10 +1112,7 @@ pub async fn change_description(token: String, request: DescriptionChangeRequest
             .await
             .unwrap();
 
-        info!(
-            "Description changed for user with id: {}",
-            token.claims.uid
-        );
+        info!("Description changed for user with id: {}", token.claims.uid);
         add_upload_db(&connection, token.claims.uid, 1).await;
         let r = "Description change successful";
         Ok(warp::reply::with_status(
@@ -1073,7 +1128,10 @@ pub async fn change_description(token: String, request: DescriptionChangeRequest
     }
 }
 
-pub async fn upload_image(token: String, form: FormData) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn upload_image(
+    token: String,
+    form: FormData,
+) -> Result<impl warp::Reply, warp::Rejection> {
     let token = match verify_token::verify_token(token) {
         Ok(val) => val,
         Err(_) => {
@@ -1085,7 +1143,9 @@ pub async fn upload_image(token: String, form: FormData) -> Result<impl warp::Re
         }
     };
 
-    let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
+    let connection = tokio_rusqlite::Connection::open("projekt-db")
+        .await
+        .unwrap();
 
     if is_limited(&connection, token.claims.uid).await && token.claims.is_admin == 0 {
         let r = "Ur too fast";
@@ -1140,9 +1200,15 @@ pub async fn upload_image(token: String, form: FormData) -> Result<impl warp::Re
             };
             let image_uuid = uuid::Uuid::new_v4().to_string();
             let file_name = format!("./media/images/{}.{}", image_uuid, file_ending);
+            let pfp_file_name = format!("./media/images/pfp_{}.{}", image_uuid, file_ending);
+
             match add_image_db(&connection, format!("{}.{}", image_uuid, file_ending)).await {
                 Ok(val) => {
-                    tokio::fs::write(&file_name, value).await.map_err(|e| {
+                    tokio::fs::write(&file_name, value.clone()).await.map_err(|e| {
+                        error!("error writing file: {}", e);
+                        warp::reject::reject()
+                    })?;
+                    tokio::fs::write(&pfp_file_name, value).await.map_err(|e| {
                         error!("error writing file: {}", e);
                         warp::reject::reject()
                     })?;
@@ -1170,9 +1236,14 @@ pub async fn upload_image(token: String, form: FormData) -> Result<impl warp::Re
     ))
 }
 
-pub async fn add_image_to_post(token: String, request: AddImageToPostRequest) -> Result<impl warp::Reply, warp::Rejection> {
-    let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
-    
+pub async fn set_pfp(
+    token: String,
+    request: SetPFPRequest,
+) -> Result<impl warp::Reply, warp::Rejection> {
+    let connection = tokio_rusqlite::Connection::open("projekt-db")
+        .await
+        .unwrap();
+
     let token = match verify_token::verify_token(token) {
         Ok(val) => val,
         Err(_) => {
@@ -1199,7 +1270,67 @@ pub async fn add_image_to_post(token: String, request: AddImageToPostRequest) ->
             warp::http::StatusCode::NOT_FOUND,
         ));
     }
-     
+
+    if !check_user_id(&connection, token.claims.uid).await {
+        let r = "User not found";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::NOT_FOUND,
+        ));
+    }
+
+    add_upload_db(&connection, token.claims.uid, 1).await;
+
+    match assign_image_to_user(&connection, token.claims.uid, request.image_id).await {
+        Ok(_) => {
+            let r = "PFP updated";
+            Ok(warp::reply::with_status(
+                warp::reply::json(&r),
+                warp::http::StatusCode::OK,
+            ))
+        }
+        Err(e) => Ok(warp::reply::with_status(
+            warp::reply::json(&e),
+            warp::http::StatusCode::BAD_REQUEST,
+        )),
+    }
+}
+
+pub async fn add_image_to_post(
+    token: String,
+    request: AddImageToPostRequest,
+) -> Result<impl warp::Reply, warp::Rejection> {
+    let connection = tokio_rusqlite::Connection::open("projekt-db")
+        .await
+        .unwrap();
+
+    let token = match verify_token::verify_token(token) {
+        Ok(val) => val,
+        Err(_) => {
+            let r = "Wrong token";
+            return Ok(warp::reply::with_status(
+                warp::reply::json(&r),
+                warp::http::StatusCode::UNAUTHORIZED,
+            ));
+        }
+    };
+
+    if is_limited(&connection, token.claims.uid).await && token.claims.is_admin == 0 {
+        let r = "Ur too fast";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::FORBIDDEN,
+        ));
+    }
+
+    if !check_image(&connection, request.image_id).await {
+        let r = "Image not found";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::NOT_FOUND,
+        ));
+    }
+
     if !check_post(&connection, request.post_id).await {
         let r = "Post not found";
         return Ok(warp::reply::with_status(
@@ -1208,7 +1339,9 @@ pub async fn add_image_to_post(token: String, request: AddImageToPostRequest) ->
         ));
     }
 
-    if token.claims.uid != get_user_from_post(&connection, request.post_id).await && token.claims.is_admin == 0 {
+    if token.claims.uid != get_user_from_post(&connection, request.post_id).await
+        && token.claims.is_admin == 0
+    {
         let r = "User not authorized";
         return Ok(warp::reply::with_status(
             warp::reply::json(&r),
@@ -1217,7 +1350,7 @@ pub async fn add_image_to_post(token: String, request: AddImageToPostRequest) ->
     }
 
     add_upload_db(&connection, token.claims.uid, 1).await;
-    
+
     match assign_image_to_post_db(&connection, request.post_id, request.image_id).await {
         Ok(_) => {
             let r = "Image added to post";
@@ -1225,18 +1358,17 @@ pub async fn add_image_to_post(token: String, request: AddImageToPostRequest) ->
                 warp::reply::json(&r),
                 warp::http::StatusCode::OK,
             ))
-        },
-        Err(e) => {
-            Ok(warp::reply::with_status(
-                warp::reply::json(&e),
-                warp::http::StatusCode::BAD_REQUEST,
-            ))
-
         }
+        Err(e) => Ok(warp::reply::with_status(
+            warp::reply::json(&e),
+            warp::http::StatusCode::BAD_REQUEST,
+        )),
     }
 }
 
-pub async fn handle_rejection(err: Rejection) -> std::result::Result<impl warp::Reply, std::convert::Infallible> {
+pub async fn handle_rejection(
+    err: Rejection,
+) -> std::result::Result<impl warp::Reply, std::convert::Infallible> {
     if err.is_not_found() {
         Ok(warp::reply::with_status(
             "Not found",
@@ -1287,11 +1419,13 @@ pub fn signup_json() -> impl Filter<Extract = (SignupRequest,), Error = warp::Re
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
 
-pub fn delete_json() -> impl Filter<Extract = (UserDeleteRequest,), Error = warp::Rejection> + Clone {
+pub fn delete_json() -> impl Filter<Extract = (UserDeleteRequest,), Error = warp::Rejection> + Clone
+{
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
 
-pub fn upgrade_json() -> impl Filter<Extract = (UserUpgradeRequest,), Error = warp::Rejection> + Clone {
+pub fn upgrade_json(
+) -> impl Filter<Extract = (UserUpgradeRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
 
@@ -1311,14 +1445,22 @@ pub fn unreact_json() -> impl Filter<Extract = (UnlikeRequest,), Error = warp::R
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
 
-pub fn display_name_change_json() -> impl Filter<Extract = (DisplayNameChangeRequest,), Error = warp::Rejection> + Clone {
+pub fn display_name_change_json(
+) -> impl Filter<Extract = (DisplayNameChangeRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
 
-pub fn description_change_json() -> impl Filter<Extract = (DescriptionChangeRequest,), Error = warp::Rejection> + Clone {
+pub fn description_change_json(
+) -> impl Filter<Extract = (DescriptionChangeRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
 
-pub fn image_to_post_add_json() -> impl Filter<Extract = (AddImageToPostRequest,), Error = warp::Rejection> + Clone {
+pub fn image_to_post_add_json(
+) -> impl Filter<Extract = (AddImageToPostRequest,), Error = warp::Rejection> + Clone {
+    warp::body::content_length_limit(1024 * 16).and(warp::body::json())
+}
+
+pub fn set_pfp_json(
+) -> impl Filter<Extract = (SetPFPRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }

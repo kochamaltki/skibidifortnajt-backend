@@ -1,15 +1,37 @@
 use argon2::{password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString}, Argon2};
 // argon2 jest wolny generalnie ale nie az tak jak jest teraz, zmiana na release build powinna przyspieszyc
 // https://www.reddit.com/r/rust/comments/1ajkqd7/argon2_slow_is_hashing_password/
-use serde::{Deserialize, Serialize};
-use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm, errors, TokenData};
-use crate::get_secret::get_secret;
+use jsonwebtoken::{decode, encode, errors, EncodingKey, Header, DecodingKey, Validation, Algorithm, TokenData};
+use std::time::SystemTime; 
+use std::fs;
+use crate::types::Claims;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Claims {
-   pub uid: i64,
-   pub exp: u64,
-   pub is_admin: i64,
+pub fn get_secret() -> String{
+    let contents = fs::read_to_string("./SECRET")
+        .expect("Should have been able to read the file");
+    contents
+}
+
+fn get_sys_time_in_secs() -> u64 {
+    match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
+        Ok(n) => n.as_secs(),
+        Err(_) => panic!("SystemTime before UNIX EPOCH!"),
+    }
+}
+
+pub fn get_token(user_id: i64, is_admin_value: i64) -> String {
+    let file_contents = get_secret();
+    let jwt_secret = file_contents.as_str().trim();
+    let expiration = get_sys_time_in_secs() + 1209600; // wazny przez 10 dni
+
+    let claims = Claims {
+        uid: user_id,
+        exp: expiration,
+        is_admin: is_admin_value
+    };
+    let header = Header::new(Algorithm::HS256);
+    let tkn = encode(&header, &claims, &EncodingKey::from_base64_secret(jwt_secret).expect("Nie udalo sie zdekodowac sekretu"));
+    tkn.expect("REASON")
 }
 
 pub fn verify_token(token: String) -> Result<TokenData<Claims>, errors::Error>{

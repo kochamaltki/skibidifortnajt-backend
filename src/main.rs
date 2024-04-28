@@ -1,7 +1,4 @@
 use warp::Filter;
-pub mod get_token;
-pub mod get_secret;
-pub mod verify_token;
 pub mod auth;
 pub mod api_calls;
 pub mod types;

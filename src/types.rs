@@ -1,5 +1,12 @@
 use serde::{Serialize, Deserialize};
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Claims {
+   pub uid: i64,
+   pub exp: u64,
+   pub is_admin: i64,
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Post {
     pub post_id: i64,

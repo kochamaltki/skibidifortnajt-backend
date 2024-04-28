@@ -4,7 +4,7 @@ use tokio_rusqlite::{Connection, params};
 use tracing::info;
 
 
-use crate::{get_token::get_token, types::{Post, SignupRequest}};
+use crate::types::{Post, SignupRequest};
 use crate::auth::*;
 
 pub async fn check_user_id(connection: &Connection, id: i64) -> bool {

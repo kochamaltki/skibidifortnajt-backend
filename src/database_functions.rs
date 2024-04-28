@@ -5,6 +5,7 @@ use tracing::info;
 
 
 use crate::{get_token::get_token, types::{Post, SignupRequest}};
+use crate::auth::*;
 
 pub async fn check_user_id(connection: &Connection, id: i64) -> bool {
     let query = "SELECT user_id FROM users WHERE user_id = ?";
@@ -293,11 +294,12 @@ pub async fn add_post_db(connection: &Connection, post: Post, tags: Vec<String>)
 pub async fn add_user_db(connection: &Connection, request: SignupRequest) -> String {
     let user_id = max_user_id(connection).await.unwrap();
     let user_name = request.user_name.clone();
-    
+    let password = request.passwd.clone();
+    let password_hash = get_hash(password);
     let signup_query = "INSERT INTO users VALUES (:user_id, :user_name, :user_name, '', :passwd, 0, '')";
     connection.call(move |conn| {
         let mut statement = conn.prepare(signup_query).unwrap();
-        statement.execute(params![user_id, request.user_name, request.passwd]).unwrap();
+        statement.execute(params![user_id, request.user_name, password_hash]).unwrap();
         Ok(0)
     }).await.unwrap();
 

@@ -2,6 +2,7 @@ use warp::Filter;
 pub mod get_token;
 pub mod get_secret;
 pub mod verify_token;
+pub mod auth;
 pub mod api_calls;
 pub mod types;
 pub mod database_functions;
@@ -192,6 +193,6 @@ async fn main() {
         .allow_headers(vec!["content-type", "Access-Control-Allow-Origin"])
         .allow_credentials(true);
 
-    let routes = routes().recover(handle_rejection).with(cors);
+    let routes = routes().with(cors); // change back to do error handling
     warp::serve(routes).run(([0, 0, 0, 0], 8000)).await;
 }

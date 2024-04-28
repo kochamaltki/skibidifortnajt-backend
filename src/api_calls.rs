@@ -2,6 +2,7 @@ use crate::database_functions::*;
 use crate::get_token::get_token;
 use crate::types::*;
 use crate::verify_token::{self};
+use crate::auth::*;
 use bytes::BufMut;
 use futures::{StreamExt, TryStreamExt};
 
@@ -733,13 +734,13 @@ pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Reje
     let name = request.user_name;
 
     match get_id_passwd_adm(&connection, name.clone()).await {
-        Ok((user_id, passwd, is_admin)) => {
+        Ok((user_id, hash, is_admin)) => {
             if check_banned(&connection, user_id).await {
                 info!("Can't log in user {}, reason - ban", user_id);
                 return Err(warp::reject::custom(UserBanned));
             };
 
-            if passwd == request.passwd {
+            if verify_hash(request.passwd, hash) {
                 info!("User {} logged in", name);
                 let token = get_token(user_id, is_admin);
                 let mut cookie_params =

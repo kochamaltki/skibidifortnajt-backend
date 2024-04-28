@@ -1,7 +1,7 @@
 use crate::database_functions::*;
 use crate::get_token::get_token;
 use crate::types::*;
-use crate::verify_token::{self};
+// use crate::verify_token::{self};
 use crate::auth::*;
 use bytes::BufMut;
 use futures::{StreamExt, TryStreamExt};
@@ -496,7 +496,7 @@ pub async fn get_images_from_post(post_id: i64) -> Result<impl warp::Reply, warp
 
 pub async fn validate_token(token: Option<String>) -> Result<impl warp::Reply, warp::Rejection> {
     match token {
-        Some(token) => match verify_token::verify_token(token) {
+        Some(token) => match verify_token(token) {
             Ok(val) => {
                 let r = val.claims.uid;
                 Ok(warp::reply::with_status(
@@ -526,7 +526,7 @@ pub async fn post(
     token: String,
     request: PostCreateRequest,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    let token = match verify_token::verify_token(token) {
+    let token = match verify_token(token) {
         Ok(val) => val,
         Err(_) => {
             let r = "Wrong token";
@@ -595,7 +595,7 @@ pub async fn react(
     token: String,
     request: LikeRequest,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    let token = match verify_token::verify_token(token) {
+    let token = match verify_token(token) {
         Ok(val) => val,
         Err(_) => {
             let r = "Wrong token";
@@ -657,7 +657,7 @@ pub async fn unreact(
     token: String,
     request: UnlikeRequest,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    let token = match verify_token::verify_token(token) {
+    let token = match verify_token(token) {
         Ok(val) => val,
         Err(_) => {
             let r = "Wrong token";
@@ -763,7 +763,7 @@ pub async fn login(request: LoginRequest) -> Result<impl warp::Reply, warp::Reje
 }
 
 pub async fn logout(token: String) -> Result<impl warp::Reply, warp::Rejection> {
-    match verify_token::verify_token(token) {
+    match verify_token(token) {
         Ok(_) => {}
         Err(_) => {
             return Err(warp::reject::custom(WrongToken));
@@ -813,7 +813,7 @@ pub async fn delete_user(
     _request: UserDeleteRequest,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     info!("{}", token);
-    let token = match verify_token::verify_token(token) {
+    let token = match verify_token(token) {
         Ok(val) => val,
         Err(_) => {
             return Err(warp::reject::custom(WrongToken));
@@ -850,7 +850,7 @@ pub async fn upgrade_user(
     token: String,
     request: UserUpgradeRequest,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    let token = match verify_token::verify_token(token) {
+    let token = match verify_token(token) {
         Ok(val) => val,
         Err(_) => {
             let r = "Wrong token";
@@ -903,7 +903,7 @@ pub async fn ban_user(
     token: String,
     request: UserBanRequest,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    let token = match verify_token::verify_token(token) {
+    let token = match verify_token(token) {
         Ok(val) => val,
         Err(_) => {
             let r = "Wrong token";
@@ -963,7 +963,7 @@ pub async fn unban_user(
     token: String,
     request: UserUnbanRequest,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    let token = match verify_token::verify_token(token) {
+    let token = match verify_token(token) {
         Ok(val) => val,
         Err(_) => {
             let r = "Wrong token";
@@ -1016,7 +1016,7 @@ pub async fn change_display_name(
     token: String,
     request: DisplayNameChangeRequest,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    let token = match verify_token::verify_token(token) {
+    let token = match verify_token(token) {
         Ok(val) => val,
         Err(_) => {
             let r = "Wrong token";
@@ -1076,7 +1076,7 @@ pub async fn change_description(
     token: String,
     request: DescriptionChangeRequest,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    let token = match verify_token::verify_token(token) {
+    let token = match verify_token(token) {
         Ok(val) => val,
         Err(_) => {
             let r = "Wrong token";
@@ -1133,7 +1133,7 @@ pub async fn upload_image(
     token: String,
     form: FormData,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    let token = match verify_token::verify_token(token) {
+    let token = match verify_token(token) {
         Ok(val) => val,
         Err(_) => {
             let r = "Wrong token";
@@ -1245,7 +1245,7 @@ pub async fn set_pfp(
         .await
         .unwrap();
 
-    let token = match verify_token::verify_token(token) {
+    let token = match verify_token(token) {
         Ok(val) => val,
         Err(_) => {
             let r = "Wrong token";
@@ -1305,7 +1305,7 @@ pub async fn add_image_to_post(
         .await
         .unwrap();
 
-    let token = match verify_token::verify_token(token) {
+    let token = match verify_token(token) {
         Ok(val) => val,
         Err(_) => {
             let r = "Wrong token";

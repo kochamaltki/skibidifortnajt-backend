@@ -970,6 +970,42 @@ pub async fn delete_user(
     }
 }
 
+pub async fn delete_post(token: String, request: PostDeleteRequest,) -> Result<impl warp::Reply, warp::Rejection> {
+    info!("{}", token);
+    let token = match verify_token(token) {
+        Ok(val) => val,
+        Err(_) => {
+            return Err(warp::reject::custom(WrongToken));
+        }
+    };
+    let connection = tokio_rusqlite::Connection::open("projekt-db")
+        .await
+        .unwrap();
+    let id = token.claims.uid;
+    if check_user_id(&connection, id).await || token.claims.is_admin == 1 {
+        let delete_query = "
+            DELETE FROM posts WHERE post_id = ?;
+            DELETE FROM posts_tags WHERE post_id = ?;
+            DELETE FROM posts_images WHERE post_id = ?"; // nie wszystko jest usuwane, naprawic
+        connection
+            .call(move |conn| {
+                let mut statement = conn.prepare(delete_query).unwrap();
+                statement.execute(params![request.post_id]).unwrap();
+                Ok(0)
+            })
+            .await
+            .unwrap();
+
+        info!("Post {} deleted", id);
+        let r = "Post deleted";
+        let res = warp::reply::with_status(r, warp::http::StatusCode::OK);
+        let res = warp::reply::with_header(res, "Access-Control-Allow-Origin", "*");
+        Ok(res)
+    } else {
+        Err(warp::reject::custom(UserNotFound))
+    }
+}
+
 pub async fn upgrade_user(
     token: String,
     request: UserUpgradeRequest,
@@ -1551,6 +1587,10 @@ pub fn signup_json() -> impl Filter<Extract = (SignupRequest,), Error = warp::Re
 
 pub fn delete_json() -> impl Filter<Extract = (UserDeleteRequest,), Error = warp::Rejection> + Clone
 {
+    warp::body::content_length_limit(1024 * 16).and(warp::body::json())
+}
+
+pub fn delete_post_json() -> impl Filter<Extract = (PostDeleteRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
 

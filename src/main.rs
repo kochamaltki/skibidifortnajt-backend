@@ -113,6 +113,12 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(delete_json())
         .and_then(delete_user);
 
+    let delete_post = warp::post()
+        .and(warp::path!("api" / "post" / "delete-post"))
+        .and(warp::cookie::<String>("token"))
+        .and(delete_post_json())
+        .and_then(delete_post);
+
     let upgrade = warp::post()
         .and(warp::path!("api" / "admin" / "post" / "upgrade-user"))
         .and(warp::cookie::<String>("token"))
@@ -168,6 +174,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .or(signup)
         .or(get_user_name)
         .or(delete)
+        .or(delete_post)
         .or(get_user_id)
         .or(upgrade)
         .or(get_post_by_id)
@@ -202,6 +209,6 @@ async fn main() {
         .allow_headers(vec!["content-type", "Access-Control-Allow-Origin"])
         .allow_credentials(true);
 
-    let routes = routes().recover(handle_rejection).with(cors); // change back to do error handling
+    let routes = routes().with(cors); // change back to do error handling .recover(handle_rejection)
     warp::serve(routes).run(([0, 0, 0, 0], 8000)).await;
 }

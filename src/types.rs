@@ -108,6 +108,11 @@ pub struct UserDeleteRequest {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct PostDeleteRequest {
+    pub post_id: i64,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct UserUpgradeRequest {
     pub user_id: i64,
 }

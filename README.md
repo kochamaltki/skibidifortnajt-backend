@@ -6,7 +6,7 @@
  - Install rust
  - Install docker, docker compose (optional)
  - If you want to use the test scripts, install curl
- - Create file `secret.sql` in the root directory with the following content `INSERT INTO users VALUES (0, '{admin_user}', '{admin_display_name}', '{admin_desc}', '{admin_passwd}', 1);`
+ - Create file `secret.sql` in the root directory with the following content `INSERT INTO users VALUES (0, '{admin_user}', '{admin_display_name}', '{admin_desc}', '{admin_passwd_hash}', 1);`
 ### Running
  - Before the first deploy, create a file `SECRET` in the root directory, with its content being a base64 secret
  - Run `./scripts/deploy.sh` from the root directory
@@ -23,9 +23,28 @@
  - Note: Post with id {id}
 #### /api/get/posts/all
  - Get: 200 (PostList)
+```
+Post {
+    post_id: i64
+    user_id: i64
+    date: i64
+    body: string (max 2048 chars)
+    likes: i64
+}
+```
+```
+PostList {
+    post_list: Vec<Post>
+}
+```
 #### /api/get/tags/from-post/{id}
  - Get: 200 (TagList) / 404 ("Post not found")
  - Note: All tags of post {id}
+```
+TagList {
+    tag_list: Vec<string (max 64 chars)>
+}
+```
 #### /api/get/user/name/{id}
  - Get: 200 (string) / 404 ("User not found")
  - Note: Get username of user {id} 
@@ -35,25 +54,56 @@
 #### /api/get/profile/by-id/{id}
  - Get: 200 (Profile) / 404 ("User not found")
  - Note: Get user profile
+```
+Profile {
+    user_id: i64
+    user_name: string (max 64 chars)
+    display_name: string (max 64 chars)
+    description: string (max 2048 chars)
+}
+```
  #### /api/get/likes/from-post/{id}
  - Get: 200 (LikeCount) / 404 ("Post not found")
- - Note: Get (like, count) map from post {id}
+ - Note: Get the number of likes from post {id}
+```
+LikeCount {
+    like_count: i64
+}
+```
  #### /api/get/images/from-post/{id}
  - Get: 200 (ImageList) / 404 ("Post not found")
  - Note: Get a list of image names used to acces them via the call below
+```
+ImageList {
+    image_list: Vec<string (max 64 chars)>
+}
+```
  #### /api/get/image/{image-name}
  - Get: Image
+ #### /api/get/comments/{id}
+ - Get: 200 (CommentList) / 404 ("Post not found")
+ - Note: Get a list of comments from post {id}
 #### /api/post/add-post
  - Post: 
 ```
 PostCreateRequest {
     body: string (max 2048 chars)
     tags: Vec<string (max 64 chars)>
-    token: string
 }
 ```
  - Effect: Adds a post to the db
- - Return: 201 ("Post created") / 401 ("Wrong token" / "User is banned") / 404 ("User not found")
+ - Return: 201 ({post_id:i64}) / 401 ("Wrong token" / "User is banned") / 404 ("User not found")
+ - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
+#### /api/post/comment
+ - Post: 
+```
+CommentCreateRequest {
+    post_id: i64
+    body: string (max 2048 chars)
+}
+```
+ - Effect: Adds a comment to the post
+ - Return: 201 ({comment_id:i64}) / 401 ("Wrong token" / "User is banned") / 404 ("User not found" / "Post not found")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/post/react
  - Post: 
@@ -177,51 +227,3 @@ AddImageToPostRequest {
  - Return: 200 ("Image added to post") / 400 ("Image already added to this post") / 401 ("Wrong token" / "User not authorized") / 404 ("Image not found" / "Post not found")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 ### Types
-```
-Post {
-    post_id: i64
-    user_id: i64
-    date: i64
-    body: string (max 2048 chars)
-    likes: i64
-}
-```
-```
-Profile {
-    user_id: i64
-    user_name: string (max 64 chars)
-    display_name: string (max 64 chars)
-    description: string (max 2048 chars)
-}
-```
-```
-PostList {
-    post_list: Vec<Post>
-}
-```
-```
-TagList {
-    tag_list: Vec<string (max 64 chars)>
-}
-```
-```
-ImageList {
-    image_list: Vec<string (max 64 chars)>
-}
-```
-```
-LikeCount {
-    like_count: i64
-}
-```
-
-
-
-
-
-
-
-
-
-
-

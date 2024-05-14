@@ -1,7 +1,7 @@
 use std::time::SystemTime;
 
 use tokio_rusqlite::{Connection, params};
-use tracing::info;
+use tracing::{debug, info};
 
 
 use crate::types::{Post, SignupRequest};
@@ -106,10 +106,16 @@ pub async fn purge_data(connection: &Connection, user_id: i64) {
     }).await.unwrap();
 
     let post_tag_delete_query = "DELETE FROM posts_tags WHERE post_id = ?";
+    let comment_delete_query = "DELETE FROM comments WHERE post_id = ?";
     for post_id in post_ids.iter() {
         let post_id = *post_id;
         connection.call(move |conn| {
             let mut statement = conn.prepare(post_tag_delete_query).unwrap();
+            statement.execute(params![post_id]).unwrap();
+            Ok(0)
+        }).await.unwrap();
+        connection.call(move |conn| {
+            let mut statement = conn.prepare(comment_delete_query).unwrap();
             statement.execute(params![post_id]).unwrap();
             Ok(0)
         }).await.unwrap();
@@ -151,15 +157,36 @@ pub async fn purge_data(connection: &Connection, user_id: i64) {
     }).await.unwrap();
 }
 
-pub async fn count_posts(connection: &Connection) -> Result<i64, &str> {
-    let query = "SELECT COUNT(post_id) FROM posts";
+pub async fn get_next_post_id(connection: &Connection) -> Result<i64, &str> {
+    let query = "SELECT MAX(post_id) FROM posts";
     connection.call(move |conn| {
         let mut statement = conn.prepare(query).unwrap();
         let mut rows = statement.query([]).unwrap();
         if let Some(val) = rows.next().unwrap() {
-            Ok(Ok(val.get(0).unwrap()))
+            let ret = match val.get::<_, i64>(0) {
+                Ok(val) => {val + 1},
+                Err(_) => {0}
+            };
+            Ok(Ok(ret))
         } else {
-            Ok(Err("Failed to count users"))
+            Ok(Err("Failed to count posts"))
+        }
+    }).await.unwrap()
+}
+
+pub async fn get_next_comment_id(connection: &Connection, post_id: i64) -> Result<i64, &str> {
+    let query = "SELECT COUNT(comment_id) FROM comments WHERE post_id = ?";
+    connection.call(move |conn| {
+        let mut statement = conn.prepare(query).unwrap();
+        let mut rows = statement.query(params![post_id]).unwrap();
+        if let Some(val) = rows.next().unwrap() {
+            let ret = match val.get::<_, i64>(0) {
+                Ok(val) => {val + 1},
+                Err(_) => {0}
+            };
+            Ok(Ok(ret))
+        } else {
+            Ok(Err("Failed to count posts"))
         }
     }).await.unwrap()
 }
@@ -288,6 +315,29 @@ pub async fn add_post_db(connection: &Connection, post: Post, tags: Vec<String>)
         "Added post {} for user {}", 
         post.post_id, 
         post.user_id,
+    );
+}
+
+pub async fn add_comment_db(
+    connection: &Connection, 
+    post_id: i64,
+    comment_id: i64,
+    user_id: i64,
+    body: String
+) {
+    let time_since_epoch: i64 = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64;
+
+    let query = "INSERT INTO comments VALUES (?, ?, ?, ?, ?)";
+    connection.call(move |conn| {
+        let mut statement = conn.prepare(query).unwrap();
+        statement.execute(params![post_id, comment_id, user_id, body, time_since_epoch]).unwrap();
+        Ok(0)
+    }).await.unwrap();
+    info!(
+        "Added comment {} for post {} for user {}", 
+        comment_id,
+        post_id, 
+        user_id,
     );
 }
 

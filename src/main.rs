@@ -50,6 +50,10 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
     let get_like_from_post_by_user = warp::get()
         .and(warp::path!("api" / "get" / "like" / i64 / i64))
         .and_then(get_like_from_post_by_user);
+    
+    let get_comments_from_post = warp::get()
+        .and(warp::path!("api" / "get" / "comments" / i64))
+        .and_then(get_comments_from_post);
 
     let validate_cookie = warp::get()
         .and(warp::path!("api" / "get" / "cookie"))
@@ -69,6 +73,12 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::cookie::<String>("token"))
         .and(post_json())
         .and_then(post);
+    
+    let comment = warp::post()
+        .and(warp::path!("api" / "post" / "comment"))
+        .and(warp::cookie::<String>("token"))
+        .and(comment_json())
+        .and_then(comment);
 
     let react = warp::post()
         .and(warp::path!("api" / "post" / "react"))
@@ -178,6 +188,8 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .or(validate_cookie)
         .or(logout)
         .or(set_pfp)
+        .or(comment)
+        .or(get_comments_from_post)
         // .or(get_posts_from_search)
         // .or(get_users_from_search)
 }

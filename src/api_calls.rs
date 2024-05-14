@@ -167,6 +167,53 @@ pub async fn get_posts() -> Result<impl warp::Reply, warp::Rejection> {
     ))
 }
 
+pub async fn get_comments_from_post(post_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
+    let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
+    let query = "
+        SELECT comments.*, users.user_name
+        FROM comments
+        JOIN users
+        ON users.user_id = comments.user_id
+        WHERE comments.post_id = ?
+    ";
+    
+    if !check_post(&connection, post_id).await {
+        let r = "Post not found";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::NOT_FOUND,
+        ));
+    }
+    
+    let comment_list = connection
+        .call(move |conn| {
+            let mut statement = conn.prepare(query).unwrap();
+            let mut rows = statement.query(params![post_id]).unwrap();
+            let mut comment_vec: Vec<Comment> = Vec::new();
+            while let Ok(Some(row)) = rows.next() {
+                comment_vec.push(
+                    Comment { 
+                        post_id: row.get(0).unwrap(), 
+                        comment_id: row.get(1).unwrap(), 
+                        user_id: row.get(2).unwrap(), 
+                        body: row.get(3).unwrap(), 
+                        date: row.get(4).unwrap(), 
+                        user_name: row.get(5).unwrap() 
+                    }
+                );
+            }
+            Ok(comment_vec)
+        })
+        .await
+        .unwrap();
+
+    let tags = CommentList { comment_list };
+    Ok(warp::reply::with_status(
+        warp::reply::json(&tags),
+        warp::http::StatusCode::OK,
+    ))
+}
+
 pub async fn get_tags_from_post(post_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
@@ -567,12 +614,12 @@ pub async fn post(
     };
 
     add_upload_db(&connection, token.claims.uid, 5).await;
-    let post_count = count_posts(&connection).await.unwrap();
+    let post_id = get_next_post_id(&connection).await.unwrap();
 
     add_post_db(
         &connection,
         Post {
-            post_id: post_count,
+            post_id,
             user_id: id,
             date: -1,
             body: request.body,
@@ -584,7 +631,80 @@ pub async fn post(
     .await;
 
     Ok(warp::reply::with_status(
-        warp::reply::json(&post_count),
+        warp::reply::json(&post_id),
+        warp::http::StatusCode::CREATED,
+    ))
+}
+
+pub async fn comment(
+    token: String,
+    request: CommentCreateRequest,
+) -> Result<impl warp::Reply, warp::Rejection> {
+    let token = match verify_token(token) {
+        Ok(val) => val,
+        Err(_) => {
+            let r = "Wrong token";
+            info!("{}", r);
+            return Ok(warp::reply::with_status(
+                warp::reply::json(&r),
+                warp::http::StatusCode::UNAUTHORIZED,
+            ));
+        }
+    };
+
+    let connection = tokio_rusqlite::Connection::open("projekt-db")
+        .await
+        .unwrap();
+    let id = token.claims.uid;
+
+    if is_limited(&connection, token.claims.uid).await && token.claims.is_admin == 0 {
+        let r = "Ur too fast";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::FORBIDDEN,
+        ));
+    }
+
+    if !check_post(&connection, request.post_id).await {
+        info!("Post {} not found", request.post_id);
+        let r = "Post not found";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::NOT_FOUND,
+        ));
+    }
+
+    if check_banned(&connection, token.claims.uid).await {
+        info!("User {} not allowed to post", token.claims.uid);
+        let r = "User is banned";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::UNAUTHORIZED,
+        ));
+    };
+
+    if !check_user_id(&connection, id).await {
+        let r = "User not found";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::NOT_FOUND,
+        ));
+    };
+
+    add_upload_db(&connection, token.claims.uid, 3).await;
+    let comment_id = get_next_comment_id(&connection, request.post_id).await.unwrap();
+
+    add_comment_db(
+        &connection,
+        request.post_id,
+        comment_id,
+        token.claims.uid,
+        request.body
+    )
+    .await;
+
+    Ok(warp::reply::with_status(
+        warp::reply::json(&comment_id),
         warp::http::StatusCode::CREATED,
     ))
 }
@@ -810,7 +930,6 @@ pub async fn delete_user(
     token: String,
     _request: UserDeleteRequest,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    info!("{}", token);
     let token = match verify_token(token) {
         Ok(val) => val,
         Err(_) => {
@@ -1368,6 +1487,7 @@ pub async fn add_image_to_post(
 pub async fn handle_rejection(
     err: Rejection,
 ) -> std::result::Result<impl warp::Reply, std::convert::Infallible> {
+    error!("{:?}", err);
     if err.is_not_found() {
         Ok(warp::reply::with_status(
             "Not found",
@@ -1407,6 +1527,10 @@ pub async fn handle_rejection(
 }
 
 pub fn post_json() -> impl Filter<Extract = (PostCreateRequest,), Error = warp::Rejection> + Clone {
+    warp::body::content_length_limit(1024 * 16).and(warp::body::json())
+}
+
+pub fn comment_json() -> impl Filter<Extract = (CommentCreateRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
 

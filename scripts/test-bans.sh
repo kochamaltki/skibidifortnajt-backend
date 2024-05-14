@@ -2,11 +2,11 @@
 
 ip=$1
 
-token_0=$(./scripts/login.sh $ip root toor)
+token_0=$(./scripts/login.sh $ip admin admin false)
 tok_0=$token_0
-token_1=$(./scripts/signup.sh $ip abc abc)
+token_1=$(./scripts/signup.sh $ip abc abc false)
 tok_1=$token_1
-token_2=$(./scripts/signup.sh $ip def def)
+token_2=$(./scripts/signup.sh $ip def def false)
 tok_2=$token_2
 ./scripts/create-post.sh $ip abc a b $tok_1
 ./scripts/create-post.sh $ip def d e $tok_2

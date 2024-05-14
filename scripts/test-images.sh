@@ -2,7 +2,7 @@
 
 ip=$1
 
-tok_0=$(./scripts/login.sh $ip root toor false)
+tok_0=$(./scripts/login.sh $ip admin admin false)
 tok_1=$(./scripts/signup.sh $ip dr 1234 false)
 echo $tok_0
 echo $tok_1

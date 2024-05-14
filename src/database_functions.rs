@@ -1,7 +1,7 @@
 use std::time::SystemTime;
 
 use tokio_rusqlite::{Connection, params};
-use tracing::info;
+use tracing::{debug, info};
 
 
 use crate::types::{Post, SignupRequest};
@@ -106,10 +106,16 @@ pub async fn purge_data(connection: &Connection, user_id: i64) {
     }).await.unwrap();
 
     let post_tag_delete_query = "DELETE FROM posts_tags WHERE post_id = ?";
+    let comment_delete_query = "DELETE FROM comments WHERE post_id = ?";
     for post_id in post_ids.iter() {
         let post_id = *post_id;
         connection.call(move |conn| {
             let mut statement = conn.prepare(post_tag_delete_query).unwrap();
+            statement.execute(params![post_id]).unwrap();
+            Ok(0)
+        }).await.unwrap();
+        connection.call(move |conn| {
+            let mut statement = conn.prepare(comment_delete_query).unwrap();
             statement.execute(params![post_id]).unwrap();
             Ok(0)
         }).await.unwrap();
@@ -321,7 +327,7 @@ pub async fn add_comment_db(
 ) {
     let time_since_epoch: i64 = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64;
 
-    let query = "INSERT INTO comments VALUES (?, ?, ?, ?, ?, 0)";
+    let query = "INSERT INTO comments VALUES (?, ?, ?, ?, ?)";
     connection.call(move |conn| {
         let mut statement = conn.prepare(query).unwrap();
         statement.execute(params![post_id, comment_id, user_id, body, time_since_epoch]).unwrap();

@@ -198,8 +198,7 @@ pub async fn get_comments_from_post(post_id: i64) -> Result<impl warp::Reply, wa
                         user_id: row.get(2).unwrap(), 
                         body: row.get(3).unwrap(), 
                         date: row.get(4).unwrap(), 
-                        likes: row.get(5).unwrap(), 
-                        user_name: row.get(6).unwrap() 
+                        user_name: row.get(5).unwrap() 
                     }
                 );
             }
@@ -931,7 +930,6 @@ pub async fn delete_user(
     token: String,
     _request: UserDeleteRequest,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    info!("{}", token);
     let token = match verify_token(token) {
         Ok(val) => val,
         Err(_) => {
@@ -1489,6 +1487,7 @@ pub async fn add_image_to_post(
 pub async fn handle_rejection(
     err: Rejection,
 ) -> std::result::Result<impl warp::Reply, std::convert::Infallible> {
+    error!("{:?}", err);
     if err.is_not_found() {
         Ok(warp::reply::with_status(
             "Not found",

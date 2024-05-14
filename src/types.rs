@@ -24,7 +24,6 @@ pub struct Comment {
     pub user_id: i64,
     pub body: String,
     pub date: i64,
-    pub likes: i64,
     pub user_name: String
 }
 
@@ -91,7 +90,6 @@ pub struct PostCreateRequest {
 pub struct CommentCreateRequest {
     pub post_id: i64,
     pub body: String,
-    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -106,6 +104,7 @@ pub struct UnlikeRequest {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct UserDeleteRequest {
+    pub user_id: i64, // NOT NEEDED
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

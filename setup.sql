@@ -7,6 +7,8 @@ DROP TABLE IF EXISTS images;
 DROP TABLE IF EXISTS posts_images;
 DROP TABLE IF EXISTS bans;
 DROP TABLE IF EXISTS uploads;
+DROP TABLE IF EXISTS comments;
+DROP TABLE IF EXISTS comments_likes;
 
 CREATE TABLE posts(
 	post_id INTEGER PRIMARY KEY NOT NULL,
@@ -65,6 +67,20 @@ CREATE TABLE uploads(
 	date BIGINT NOT NULL
 );
 
+CREATE TABLE comments(
+	post_id INTEGER NOT NULL,
+	comment_id INTEGER NOT NULL,
+	user_id INTEGER NOT NULL,
+	body VARCHAR(512) NOT NULL,
+	date BIGINT NOT NULL,
+	likes INTEGER NOT NULL
+);
+
+CREATE TABLE comments_likes(
+	user_id INTEGER NOT NULL,
+	comment_id INTEGER NOT NULL
+);
+
 --                                  -----------------
 --                                  |     bans      |
 --                                  -----------------
@@ -82,12 +98,24 @@ CREATE TABLE uploads(
 --   |   is_admin   |       |       -----------       |       -----------   |       | posts_images |            |   images   |
 --   |    pfp_id    | 1 -*A |- many | user_id |       |                     |       ----------------    A*-|    --------------
 --   ----------------       |       | post_id | many -|                     |- many |   post_id    |       |- 1 |  image_id  |
---                          |       -----------                                     |   image_id   | many -|    | image_file |
---                          |                                                       ----------------            --------------
---                          |       -----------
---                          |       | uploads |        
---                          |       -----------
---                          |- many | user_id |
---                                  | weight  |
---                                  |  date   |
---                                  -----------       
+--                          |       -----------                             |       |   image_id   | many -|    | image_file |
+--                          |                                               |       --------------            --------------
+--                          |       -----------                             |
+--                          |       | uploads |                             | 
+--                          |       -----------                             | 
+--                          |- many | user_id |                             | 
+--                          |       | weight  |                             |
+--                          |       |  date   |                             |
+--                          |       -----------                             |
+--                          |                                               |
+--                          |       ------------------                      |    ------------------
+--                          |       | comments_likes |                      |    |    comments    |
+--                          |       ------------------                      |    ------------------
+--                          |- many |    user_id     |                      |- 1 |    post_id     |
+--                          |       |   comment_id   | many ------------------ 1 |   comment_id   |
+--                          |       ------------------                   |- many |    user_id     |
+--                          |                                            |       |     body       |
+--                          |--------------------------------------------|       |     date       |
+--                                                                               |     likes      |
+--                                                                               ------------------
+--                                                                               

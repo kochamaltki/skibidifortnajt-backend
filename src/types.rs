@@ -18,6 +18,17 @@ pub struct Post {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct Comment {
+    pub post_id: i64,
+    pub comment_id: i64,
+    pub user_id: i64,
+    pub body: String,
+    pub date: i64,
+    pub likes: i64,
+    pub user_name: String
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Profile {
     pub user_id: i64,
     pub user_name: String,
@@ -39,6 +50,11 @@ pub struct ProfileList {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TagList {
     pub tag_list: Vec<String>
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct CommentList {
+    pub comment_list: Vec<Comment>
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -67,6 +83,13 @@ pub struct SignupRequest {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct PostCreateRequest {
+    pub body: String,
+    pub tags: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct CommentCreateRequest {
+    pub post_id: i64,
     pub body: String,
     pub tags: Vec<String>,
 }

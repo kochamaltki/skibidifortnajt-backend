@@ -12,11 +12,16 @@ use warp::reject::{Reject, Rejection};
 use std::time::SystemTime;
 use warp::Filter;
 
-pub async fn get_posts_by_user(user_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn get_posts_by_user(user_id: i64, limit: i64, offset: i64) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
         .unwrap();
-    let query = "SELECT posts.*, users.user_name FROM posts JOIN users ON users.user_id=posts.user_id WHERE users.user_id = ?";
+    let query = "
+        SELECT posts.*, users.user_name 
+        FROM posts 
+        JOIN users ON users.user_id=posts.user_id 
+        WHERE users.user_id = ?
+        LIMIT ? OFFSET ?";
 
     if !check_user_id(&connection, user_id).await {
         let r = "User not found";
@@ -37,7 +42,7 @@ pub async fn get_posts_by_user(user_id: i64) -> Result<impl warp::Reply, warp::R
     let post_list = connection
         .call(move |conn| {
             let mut statement = conn.prepare(query).unwrap();
-            let mut rows = statement.query(params![user_id]).unwrap();
+            let mut rows = statement.query(params![user_id, limit, offset]).unwrap();
             let mut post_vec: Vec<Post> = Vec::new();
             while let Ok(Some(row)) = rows.next() {
                 post_vec.push(Post {
@@ -61,7 +66,7 @@ pub async fn get_posts_by_user(user_id: i64) -> Result<impl warp::Reply, warp::R
     ))
 }
 
-pub async fn get_posts_by_tag(tag: String) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn get_posts_by_tag(tag: String, limit: i64, offset: i64) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
         .unwrap();
@@ -91,13 +96,14 @@ pub async fn get_posts_by_tag(tag: String) -> Result<impl warp::Reply, warp::Rej
         WHERE posts_tags.tag_id = ? 
         AND posts.user_id NOT IN 
         (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
+        LIMIT ? OFFSET ?
     ",
         timestamp
     );
     let post_list = connection
         .call(move |conn| {
             let mut statement = conn.prepare(&query).unwrap();
-            let mut rows = statement.query(params![tag_id]).unwrap();
+            let mut rows = statement.query(params![tag_id, limit, offset]).unwrap();
             let mut post_vec: Vec<Post> = Vec::new();
             while let Ok(Some(row)) = rows.next() {
                 post_vec.push(Post {
@@ -121,7 +127,7 @@ pub async fn get_posts_by_tag(tag: String) -> Result<impl warp::Reply, warp::Rej
     ))
 }
 
-pub async fn get_posts() -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn get_posts(limit: i64, offset: i64) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
         .unwrap();
@@ -136,14 +142,15 @@ pub async fn get_posts() -> Result<impl warp::Reply, warp::Rejection> {
         JOIN users
         ON posts.user_id = users.user_id
         WHERE posts.user_id NOT IN
-        (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})",
+        (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
+        LIMIT ? OFFSET ?",
         timestamp
     );
 
     let post_list = connection
         .call(move |conn| {
             let mut statement = conn.prepare(&query).unwrap();
-            let mut rows = statement.query(params![]).unwrap();
+            let mut rows = statement.query(params![limit, offset]).unwrap();
             let mut post_vec: Vec<Post> = Vec::new();
             while let Ok(Some(row)) = rows.next() {
                 post_vec.push(Post {

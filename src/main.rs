@@ -8,24 +8,24 @@ use crate::api_calls::*;
 
 pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     let get_posts_by_user = warp::get()
-        .and(warp::path!("api" / "get" / "posts" / "by-user" / i64))
+        .and(warp::path!("api" / "get" / "posts" / "by-user" / i64 / i64 / i64))
         .and_then(get_posts_by_user);
     
     let get_posts_by_tag = warp::get()
-        .and(warp::path!("api" / "get" / "posts" / "by-tag" / String))
+        .and(warp::path!("api" / "get" / "posts" / "by-tag" / String / i64 / i64))
         .and_then(get_posts_by_tag);
-
-    let get_tags_from_post = warp::get()
-        .and(warp::path!("api" / "get" / "tags" / "from-post" / i64))
-        .and_then(get_tags_from_post);
-
+    
     let get_post_by_id = warp::get()
         .and(warp::path!("api" / "get" / "posts" / "by-id" / i64))
         .and_then(get_post_by_id);
 
     let get_posts = warp::get()
-        .and(warp::path!("api" / "get" / "posts" / "all"))
+        .and(warp::path!("api" / "get" / "posts" / "all" / i64 / i64))
         .and_then(get_posts);
+
+    let get_tags_from_post = warp::get()
+        .and(warp::path!("api" / "get" / "tags" / "from-post" / i64))
+        .and_then(get_tags_from_post);
     
     let get_user_name = warp::get()
         .and(warp::path!("api" / "get" / "user" / "name" / i64))

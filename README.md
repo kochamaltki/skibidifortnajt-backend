@@ -12,16 +12,16 @@
  - Run `./scripts/deploy.sh` from the root directory
  - Docker: First `docker build -t backend .` and run `docker compose up` from the root directory
 ### Acces points
-#### /api/get/posts/by-user/{id}
+#### /api/get/posts/by-user/{id}/{limit}/{offset}
  - Get: 200 (PostList) / 404 ("User not found")
  - Note: Only from user {id}
-#### /api/get/posts/by-tag/{tag}
+#### /api/get/posts/by-tag/{tag}/{limit}/{offset}
  - Get: 200 (PostList) / 404 ("Tag not found")
  - Note: Posts with tag {tag}
-#### /api/get/posts/by-id/{id}
+#### /api/get/posts/by-id/{id}/{limit}/{offset}
  - Get: 200 (Post) / 404 ("Post not found")
  - Note: Post with id {id}
-#### /api/get/posts/all
+#### /api/get/posts/all/{limit}/{offset}
  - Get: 200 (PostList)
 ```
 Post {

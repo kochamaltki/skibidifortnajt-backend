@@ -43,7 +43,7 @@ pub struct PostList {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ProfileList {
-    pub post_list: Vec<Profile>
+    pub profile_list: Vec<Profile>
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

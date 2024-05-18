@@ -177,6 +177,58 @@ pub async fn get_posts_from_search(phrase: String, limit: i64, offset: i64) -> R
     ))
 }
 
+pub async fn get_users_from_search(phrase: String, limit: i64, offset: i64) -> Result<impl warp::Reply, warp::Rejection> {
+    let connection = tokio_rusqlite::Connection::open("projekt-db")
+        .await
+        .unwrap();
+
+    let timestamp = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+    let phrase_cpy = "%".to_string() + &phrase + "%";
+    let query = format!(
+        "
+        SELECT users.user_id, users.user_name, users.display_name, users.description, images.image_file
+        FROM users 
+        LEFT JOIN images ON images.image_id=users.pfp_id
+        WHERE users.user_name LIKE ?
+        AND users.user_id NOT IN 
+        (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
+        LIMIT ? OFFSET ?
+    ", // tutaj tez ten left join do wywalenia
+        timestamp
+    );
+    let profile_list = connection
+        .call(move |conn| {
+            let mut statement = conn.prepare(&query).unwrap();
+            let mut rows = statement.query(params![phrase_cpy, limit, offset]).unwrap();
+            let mut profile_vec: Vec<Profile> = Vec::new();
+            while let Ok(Some(row)) = rows.next() {
+                let pfp = match row.get::<_, String>(4) {
+                    Ok(val) => format!("pfp_{}", val),
+                    Err(_) => "".to_string()
+                };
+                profile_vec.push(Profile {
+                    user_id: row.get(0).unwrap(),
+                    user_name: row.get(1).unwrap(),
+                    display_name: row.get(2).unwrap(),
+                    description: row.get(3).unwrap(),
+                    pfp_image: pfp,
+                });
+            }
+            Ok(profile_vec)
+        })
+        .await
+        .unwrap();
+
+    let post = ProfileList { profile_list };
+    Ok(warp::reply::with_status(
+        warp::reply::json(&post),
+        warp::http::StatusCode::OK,
+    ))
+}
+
 pub async fn get_posts(limit: i64, offset: i64) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
@@ -436,9 +488,9 @@ pub async fn get_profile_by_id(user_id: i64) -> Result<impl warp::Reply, warp::R
                users.display_name, users.description,
                images.image_file
         FROM users 
-        JOIN images ON images.image_id=users.pfp_id
+        LEFT JOIN images ON images.image_id=users.pfp_id
         WHERE users.user_id = ?
-    ";
+    "; // na razie jest left join zeby zwracalo cokolwiek, do naprawienia
 
     if !check_user_id(&connection, user_id).await {
         let r = "User not found";

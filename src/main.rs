@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 use warp::Filter;
 pub mod auth;
 pub mod api_calls;
@@ -64,9 +65,9 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path!("api" / "get" / "posts" / "from-search" / String / i64 / i64))
         .and_then(get_posts_from_search);
 
-    // let get_users_from_search = warp::get()
-    //     .and(warp::path("api" / "get" / "users" / "from-search" / String))
-    //     .and_then(get_posts_from_search);
+    let get_users_from_search = warp::get()
+        .and(warp::path!("api" / "get" / "users" / "from-search" / String / i64 / i64))
+        .and_then(get_users_from_search);
 
     let post = warp::post()
         .and(warp::path!("api" / "post" / "add-post"))
@@ -198,7 +199,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .or(comment)
         .or(get_comments_from_post)
         .or(get_posts_from_search)
-        // .or(get_users_from_search)
+        .or(get_users_from_search)
 }
 
 #[tokio::main]

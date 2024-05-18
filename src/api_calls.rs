@@ -87,7 +87,7 @@ pub async fn get_posts_by_tag(tag: String, limit: i64, offset: i64) -> Result<im
         .as_secs() as i64;
     let query = format!(
         "
-        SELECT posts.post_id, posts.user_id, posts.date, posts.body, users.user_id 
+        SELECT posts.*, users.user_name
         FROM posts 
         JOIN posts_tags
         ON posts.post_id = posts_tags.post_id 
@@ -104,6 +104,56 @@ pub async fn get_posts_by_tag(tag: String, limit: i64, offset: i64) -> Result<im
         .call(move |conn| {
             let mut statement = conn.prepare(&query).unwrap();
             let mut rows = statement.query(params![tag_id, limit, offset]).unwrap();
+            let mut post_vec: Vec<Post> = Vec::new();
+            while let Ok(Some(row)) = rows.next() {
+                post_vec.push(Post {
+                    post_id: row.get(0).unwrap(),
+                    user_id: row.get(1).unwrap(),
+                    date: row.get(2).unwrap(),
+                    body: row.get(3).unwrap(),
+                    likes: row.get(4).unwrap(),
+                    user_name: row.get(5).unwrap(),
+                });
+            }
+            Ok(post_vec)
+        })
+        .await
+        .unwrap();
+
+    let post = PostList { post_list };
+    Ok(warp::reply::with_status(
+        warp::reply::json(&post),
+        warp::http::StatusCode::OK,
+    ))
+}
+
+pub async fn get_posts_from_search(phrase: String, limit: i64, offset: i64) -> Result<impl warp::Reply, warp::Rejection> {
+    let connection = tokio_rusqlite::Connection::open("projekt-db")
+        .await
+        .unwrap();
+
+    let timestamp = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+    let phrase_cpy = "%".to_string() + &phrase + "%";
+    let query = format!(
+        "
+        SELECT posts.*, users.user_name
+        FROM posts 
+        JOIN users
+        ON posts.user_id = users.user_id
+        WHERE posts.body LIKE ?
+        AND posts.user_id NOT IN 
+        (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
+        LIMIT ? OFFSET ?
+    ",
+        timestamp
+    );
+    let post_list = connection
+        .call(move |conn| {
+            let mut statement = conn.prepare(&query).unwrap();
+            let mut rows = statement.query(params![phrase_cpy, limit, offset]).unwrap();
             let mut post_vec: Vec<Post> = Vec::new();
             while let Ok(Some(row)) = rows.next() {
                 post_vec.push(Post {

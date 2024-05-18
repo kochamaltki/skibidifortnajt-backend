@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 use warp::Filter;
 pub mod auth;
 pub mod api_calls;
@@ -60,13 +61,13 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::cookie::optional::<String>("token"))
         .and_then(validate_token);
 
-    // let get_posts_from_search = warp::get()
-    //     .and(warp::path!("api" / "get" / "posts" / "from-search" / String))
-    //     .and_then(get_posts_from_search);
+    let get_posts_from_search = warp::get()
+        .and(warp::path!("api" / "get" / "posts" / "from-search" / String / i64 / i64))
+        .and_then(get_posts_from_search);
 
-    // let get_users_from_search = warp::get()
-    //     .and(warp::path("api" / "get" / "users" / "from-search" / String))
-    //     .and_then(get_posts_from_search);
+    let get_users_from_search = warp::get()
+        .and(warp::path!("api" / "get" / "users" / "from-search" / String / i64 / i64))
+        .and_then(get_users_from_search);
 
     let post = warp::post()
         .and(warp::path!("api" / "post" / "add-post"))
@@ -107,11 +108,17 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(signup_json())
         .and_then(signup);
     
-    let delete = warp::post()
+    let delete_user = warp::post()
         .and(warp::path!("api" / "post" / "delete-user"))
         .and(warp::cookie::<String>("token"))
         .and(delete_json())
         .and_then(delete_user);
+
+    let delete_post = warp::post()
+        .and(warp::path!("api" / "post" / "delete-post"))
+        .and(warp::cookie::<String>("token"))
+        .and(delete_post_json())
+        .and_then(delete_post);
 
     let upgrade = warp::post()
         .and(warp::path!("api" / "admin" / "post" / "upgrade-user"))
@@ -144,7 +151,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and_then(change_description);
 
     let upload_image = warp::post()
-        .and(warp::path!("api" / "post" / "upload" / "image")) // test
+        .and(warp::path!("api" / "post" / "upload" / "image"))
         .and(warp::cookie::<String>("token"))
         .and(warp::multipart::form().max_length(25000000))
         .and_then(upload_image);
@@ -167,7 +174,8 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .or(login)
         .or(signup)
         .or(get_user_name)
-        .or(delete)
+        .or(delete_user)
+        .or(delete_post)
         .or(get_user_id)
         .or(upgrade)
         .or(get_post_by_id)
@@ -190,8 +198,8 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .or(set_pfp)
         .or(comment)
         .or(get_comments_from_post)
-        // .or(get_posts_from_search)
-        // .or(get_users_from_search)
+        .or(get_posts_from_search)
+        .or(get_users_from_search)
 }
 
 #[tokio::main]
@@ -202,6 +210,6 @@ async fn main() {
         .allow_headers(vec!["content-type", "Access-Control-Allow-Origin"])
         .allow_credentials(true);
 
-    let routes = routes().recover(handle_rejection).with(cors); // change back to do error handling
+    let routes = routes().with(cors).recover(handle_rejection); // change back to do error handling .recover(handle_rejection)
     warp::serve(routes).run(([0, 0, 0, 0], 8000)).await;
 }

@@ -87,7 +87,7 @@ pub async fn get_posts_by_tag(tag: String, limit: i64, offset: i64) -> Result<im
         .as_secs() as i64;
     let query = format!(
         "
-        SELECT posts.post_id, posts.user_id, posts.date, posts.body, users.user_id 
+        SELECT posts.*, users.user_name
         FROM posts 
         JOIN posts_tags
         ON posts.post_id = posts_tags.post_id 
@@ -121,6 +121,108 @@ pub async fn get_posts_by_tag(tag: String, limit: i64, offset: i64) -> Result<im
         .unwrap();
 
     let post = PostList { post_list };
+    Ok(warp::reply::with_status(
+        warp::reply::json(&post),
+        warp::http::StatusCode::OK,
+    ))
+}
+
+pub async fn get_posts_from_search(phrase: String, limit: i64, offset: i64) -> Result<impl warp::Reply, warp::Rejection> {
+    let connection = tokio_rusqlite::Connection::open("projekt-db")
+        .await
+        .unwrap();
+
+    let timestamp = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+    let phrase_cpy = "%".to_string() + &phrase + "%";
+    let query = format!(
+        "
+        SELECT posts.*, users.user_name
+        FROM posts 
+        JOIN users
+        ON posts.user_id = users.user_id
+        WHERE posts.body LIKE ?
+        AND posts.user_id NOT IN 
+        (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
+        LIMIT ? OFFSET ?
+    ",
+        timestamp
+    );
+    let post_list = connection
+        .call(move |conn| {
+            let mut statement = conn.prepare(&query).unwrap();
+            let mut rows = statement.query(params![phrase_cpy, limit, offset]).unwrap();
+            let mut post_vec: Vec<Post> = Vec::new();
+            while let Ok(Some(row)) = rows.next() {
+                post_vec.push(Post {
+                    post_id: row.get(0).unwrap(),
+                    user_id: row.get(1).unwrap(),
+                    date: row.get(2).unwrap(),
+                    body: row.get(3).unwrap(),
+                    likes: row.get(4).unwrap(),
+                    user_name: row.get(5).unwrap(),
+                });
+            }
+            Ok(post_vec)
+        })
+        .await
+        .unwrap();
+
+    let post = PostList { post_list };
+    Ok(warp::reply::with_status(
+        warp::reply::json(&post),
+        warp::http::StatusCode::OK,
+    ))
+}
+
+pub async fn get_users_from_search(phrase: String, limit: i64, offset: i64) -> Result<impl warp::Reply, warp::Rejection> {
+    let connection = tokio_rusqlite::Connection::open("projekt-db")
+        .await
+        .unwrap();
+
+    let timestamp = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+    let phrase_cpy = "%".to_string() + &phrase + "%";
+    let query = format!(
+        "
+        SELECT users.user_id, users.user_name, users.display_name, users.description, images.image_file
+        FROM users 
+        LEFT JOIN images ON images.image_id=users.pfp_id
+        WHERE users.user_name LIKE ?
+        AND users.user_id NOT IN 
+        (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
+        LIMIT ? OFFSET ?
+    ", // tutaj tez ten left join do wywalenia
+        timestamp
+    );
+    let profile_list = connection
+        .call(move |conn| {
+            let mut statement = conn.prepare(&query).unwrap();
+            let mut rows = statement.query(params![phrase_cpy, limit, offset]).unwrap();
+            let mut profile_vec: Vec<Profile> = Vec::new();
+            while let Ok(Some(row)) = rows.next() {
+                let pfp = match row.get::<_, String>(4) {
+                    Ok(val) => format!("pfp_{}", val),
+                    Err(_) => "".to_string()
+                };
+                profile_vec.push(Profile {
+                    user_id: row.get(0).unwrap(),
+                    user_name: row.get(1).unwrap(),
+                    display_name: row.get(2).unwrap(),
+                    description: row.get(3).unwrap(),
+                    pfp_image: pfp,
+                });
+            }
+            Ok(profile_vec)
+        })
+        .await
+        .unwrap();
+
+    let post = ProfileList { profile_list };
     Ok(warp::reply::with_status(
         warp::reply::json(&post),
         warp::http::StatusCode::OK,
@@ -386,9 +488,9 @@ pub async fn get_profile_by_id(user_id: i64) -> Result<impl warp::Reply, warp::R
                users.display_name, users.description,
                images.image_file
         FROM users 
-        JOIN images ON images.image_id=users.pfp_id
+        LEFT JOIN images ON images.image_id=users.pfp_id
         WHERE users.user_id = ?
-    ";
+    "; // na razie jest left join zeby zwracalo cokolwiek, do naprawienia
 
     if !check_user_id(&connection, user_id).await {
         let r = "User not found";
@@ -962,6 +1064,42 @@ pub async fn delete_user(
 
         info!("User {} deleted", id);
         let r = "User deleted";
+        let res = warp::reply::with_status(r, warp::http::StatusCode::OK);
+        let res = warp::reply::with_header(res, "Access-Control-Allow-Origin", "*");
+        Ok(res)
+    } else {
+        Err(warp::reject::custom(UserNotFound))
+    }
+}
+
+pub async fn delete_post(token: String, request: PostDeleteRequest,) -> Result<impl warp::Reply, warp::Rejection> {
+    info!("{}", token);
+    let token = match verify_token(token) {
+        Ok(val) => val,
+        Err(_) => {
+            return Err(warp::reject::custom(WrongToken));
+        }
+    };
+    let connection = tokio_rusqlite::Connection::open("projekt-db")
+        .await
+        .unwrap();
+    let id = token.claims.uid;
+    if check_user_id(&connection, id).await || token.claims.is_admin == 1 {
+        let delete_query = "
+            DELETE FROM posts WHERE post_id = ?;
+            DELETE FROM posts_tags WHERE post_id = ?;
+            DELETE FROM posts_images WHERE post_id = ?"; // nie wszystko jest usuwane, naprawic
+        connection
+            .call(move |conn| {
+                let mut statement = conn.prepare(delete_query).unwrap();
+                statement.execute(params![request.post_id]).unwrap();
+                Ok(0)
+            })
+            .await
+            .unwrap();
+
+        info!("Post {} deleted", id);
+        let r = "Post deleted";
         let res = warp::reply::with_status(r, warp::http::StatusCode::OK);
         let res = warp::reply::with_header(res, "Access-Control-Allow-Origin", "*");
         Ok(res)
@@ -1551,6 +1689,10 @@ pub fn signup_json() -> impl Filter<Extract = (SignupRequest,), Error = warp::Re
 
 pub fn delete_json() -> impl Filter<Extract = (UserDeleteRequest,), Error = warp::Rejection> + Clone
 {
+    warp::body::content_length_limit(1024 * 16).and(warp::body::json())
+}
+
+pub fn delete_post_json() -> impl Filter<Extract = (PostDeleteRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
 

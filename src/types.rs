@@ -43,7 +43,7 @@ pub struct PostList {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ProfileList {
-    pub post_list: Vec<Profile>
+    pub profile_list: Vec<Profile>
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -105,6 +105,11 @@ pub struct UnlikeRequest {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct UserDeleteRequest {
     pub user_id: i64, // NOT NEEDED
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct PostDeleteRequest {
+    pub post_id: i64,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

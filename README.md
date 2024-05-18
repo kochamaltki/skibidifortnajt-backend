@@ -54,7 +54,7 @@ PostList {
 }
 ```
 #### /api/get/users/from-search/{search-phrase}/{limit}/{offset}
- - Get: 200 (PostList)
+ - Get: 200 (ProfileList)
 ```
 Profile {
     user_id: i64

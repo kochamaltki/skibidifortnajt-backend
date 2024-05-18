@@ -37,6 +37,38 @@ PostList {
     post_list: Vec<Post>
 }
 ```
+#### /api/get/posts/from-search/{search-phrase}/{limit}/{offset}
+ - Get: 200 (PostList)
+```
+Post {
+    post_id: i64
+    user_id: i64
+    date: i64
+    body: string (max 2048 chars)
+    likes: i64
+}
+```
+```
+PostList {
+    post_list: Vec<Post>
+}
+```
+#### /api/get/users/from-search/{search-phrase}/{limit}/{offset}
+ - Get: 200 (PostList)
+```
+Profile {
+    user_id: i64
+    user_name: String
+    display_name: String
+    description: String
+    pfp_image: String
+}
+```
+```
+ProfileList {
+    profile_list: Vec<Profile>
+}
+```
 #### /api/get/tags/from-post/{id}
  - Get: 200 (TagList) / 404 ("Post not found")
  - Note: All tags of post {id}

@@ -21,6 +21,7 @@ pub async fn get_posts_by_user(user_id: i64, limit: i64, offset: i64) -> Result<
         FROM posts 
         JOIN users ON users.user_id=posts.user_id 
         WHERE users.user_id = ?
+        ORDER BY posts.date DESC
         LIMIT ? OFFSET ?";
 
     if !check_user_id(&connection, user_id).await {
@@ -96,6 +97,7 @@ pub async fn get_posts_by_tag(tag: String, limit: i64, offset: i64) -> Result<im
         WHERE posts_tags.tag_id = ? 
         AND posts.user_id NOT IN 
         (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
+        ORDER BY posts.date DESC
         LIMIT ? OFFSET ?
     ",
         timestamp
@@ -241,10 +243,10 @@ pub async fn get_posts(limit: i64, offset: i64) -> Result<impl warp::Reply, warp
         "
         SELECT posts.*, users.user_name       
         FROM posts
-        JOIN users
-        ON posts.user_id = users.user_id
-        WHERE posts.user_id NOT IN
-        (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
+        JOIN users ON posts.user_id = users.user_id
+        WHERE 
+        posts.user_id NOT IN (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
+        ORDER BY posts.date DESC
         LIMIT ? OFFSET ?",
         timestamp
     );
@@ -253,6 +255,150 @@ pub async fn get_posts(limit: i64, offset: i64) -> Result<impl warp::Reply, warp
         .call(move |conn| {
             let mut statement = conn.prepare(&query).unwrap();
             let mut rows = statement.query(params![limit, offset]).unwrap();
+            let mut post_vec: Vec<Post> = Vec::new();
+            while let Ok(Some(row)) = rows.next() {
+                post_vec.push(Post {
+                    post_id: row.get(0).unwrap(),
+                    user_id: row.get(1).unwrap(),
+                    date: row.get(2).unwrap(),
+                    body: row.get(3).unwrap(),
+                    likes: row.get(4).unwrap(),
+                    user_name: row.get(5).unwrap(),
+                });
+            }
+            Ok(post_vec)
+        })
+        .await
+        .unwrap();
+
+    let post = PostList { post_list };
+    Ok(warp::reply::with_status(
+        warp::reply::json(&post),
+        warp::http::StatusCode::OK,
+    ))
+}
+
+pub async fn get_posts_top(limit: i64, offset: i64, date_from: i64) -> Result<impl warp::Reply, warp::Rejection> {
+    let connection = tokio_rusqlite::Connection::open("projekt-db")
+        .await
+        .unwrap();
+    let timestamp = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+    let query = format!(
+        "
+        SELECT posts.*, users.user_name       
+        FROM posts
+        JOIN users ON posts.user_id = users.user_id
+        WHERE 
+        posts.user_id NOT IN (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
+        AND posts.date > ?
+        ORDER BY posts.likes DESC
+        LIMIT ? OFFSET ?",
+        timestamp
+    );
+
+    let post_list = connection
+        .call(move |conn| {
+            let mut statement = conn.prepare(&query).unwrap();
+            let mut rows = statement.query(params![date_from, limit, offset]).unwrap();
+            let mut post_vec: Vec<Post> = Vec::new();
+            while let Ok(Some(row)) = rows.next() {
+                post_vec.push(Post {
+                    post_id: row.get(0).unwrap(),
+                    user_id: row.get(1).unwrap(),
+                    date: row.get(2).unwrap(),
+                    body: row.get(3).unwrap(),
+                    likes: row.get(4).unwrap(),
+                    user_name: row.get(5).unwrap(),
+                });
+            }
+            Ok(post_vec)
+        })
+        .await
+        .unwrap();
+
+    let post = PostList { post_list };
+    Ok(warp::reply::with_status(
+        warp::reply::json(&post),
+        warp::http::StatusCode::OK,
+    ))
+}
+
+pub async fn get_posts_bottom(limit: i64, offset: i64, date_from: i64) -> Result<impl warp::Reply, warp::Rejection> {
+    let connection = tokio_rusqlite::Connection::open("projekt-db")
+        .await
+        .unwrap();
+    let timestamp = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+    let query = format!(
+        "
+        SELECT posts.*, users.user_name       
+        FROM posts
+        JOIN users ON posts.user_id = users.user_id
+        WHERE 
+        posts.user_id NOT IN (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
+        AND posts.date > ?
+        ORDER BY posts.likes ASC
+        LIMIT ? OFFSET ?",
+        timestamp
+    );
+
+    let post_list = connection
+        .call(move |conn| {
+            let mut statement = conn.prepare(&query).unwrap();
+            let mut rows = statement.query(params![date_from, limit, offset]).unwrap();
+            let mut post_vec: Vec<Post> = Vec::new();
+            while let Ok(Some(row)) = rows.next() {
+                post_vec.push(Post {
+                    post_id: row.get(0).unwrap(),
+                    user_id: row.get(1).unwrap(),
+                    date: row.get(2).unwrap(),
+                    body: row.get(3).unwrap(),
+                    likes: row.get(4).unwrap(),
+                    user_name: row.get(5).unwrap(),
+                });
+            }
+            Ok(post_vec)
+        })
+        .await
+        .unwrap();
+
+    let post = PostList { post_list };
+    Ok(warp::reply::with_status(
+        warp::reply::json(&post),
+        warp::http::StatusCode::OK,
+    ))
+}
+
+pub async fn get_posts_trending(limit: i64, offset: i64, date_from: i64) -> Result<impl warp::Reply, warp::Rejection> {
+    let connection = tokio_rusqlite::Connection::open("projekt-db")
+        .await
+        .unwrap();
+    let timestamp = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+    let query = format!(
+        "
+        SELECT posts.*, users.user_name       
+        FROM posts
+        JOIN users ON posts.user_id = users.user_id
+        WHERE 
+        posts.user_id NOT IN (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
+        AND posts.date > ?
+        ORDER BY (posts.likes / (({} - posts.date) / 60)) ASC
+        LIMIT ? OFFSET ?",
+        timestamp, timestamp
+    );
+
+    let post_list = connection
+        .call(move |conn| {
+            let mut statement = conn.prepare(&query).unwrap();
+            let mut rows = statement.query(params![date_from, limit, offset]).unwrap();
             let mut post_vec: Vec<Post> = Vec::new();
             while let Ok(Some(row)) = rows.next() {
                 post_vec.push(Post {

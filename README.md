@@ -21,8 +21,14 @@
 #### /api/get/posts/by-id/{id}/{limit}/{offset}
  - Get: 200 (Post) / 404 ("Post not found")
  - Note: Post with id {id}
-#### /api/get/posts/all/{limit}/{offset}
- - Get: 200 (PostList)
+#### /api/get/posts/new/{limit}/{offset}
+ - Get: 200 (PostList) sorted by date
+#### /api/get/posts/top/{limit}/{offset}/{from_date}
+ - Get: 200 (PostList) sorted by likes descending
+#### /api/get/posts/bottom/{limit}/{offset}/{from_date}
+ - Get: 200 (PostList) sorted by likes ascending
+#### /api/get/posts/trending/{limit}/{offset}/{from_date}
+ - Get: 200 (PostList) sorted by (likes / age in minutes)
 ```
 Post {
     post_id: i64

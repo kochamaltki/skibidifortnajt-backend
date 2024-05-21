@@ -20,8 +20,20 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and_then(get_post_by_id);
 
     let get_posts = warp::get()
-        .and(warp::path!("api" / "get" / "posts" / "all" / i64 / i64))
+        .and(warp::path!("api" / "get" / "posts" / "new" / i64 / i64))
         .and_then(get_posts);
+    
+    let get_posts_top = warp::get()
+        .and(warp::path!("api" / "get" / "posts" / "top" / i64 / i64 / i64))
+        .and_then(get_posts_top);
+    
+    let get_posts_bottom = warp::get()
+        .and(warp::path!("api" / "get" / "posts" / "bottom" / i64 / i64 / i64))
+        .and_then(get_posts_bottom);
+    
+    let get_posts_trending = warp::get()
+        .and(warp::path!("api" / "get" / "posts" / "trending" / i64 / i64 / i64))
+        .and_then(get_posts_trending);
 
     let get_tags_from_post = warp::get()
         .and(warp::path!("api" / "get" / "tags" / "from-post" / i64))
@@ -164,6 +176,9 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
     get_posts_by_user
         .or(post)
         .or(get_posts)
+        .or(get_posts_top)
+        .or(get_posts_bottom)
+        .or(get_posts_trending)
         .or(login)
         .or(signup)
         .or(get_user_name)

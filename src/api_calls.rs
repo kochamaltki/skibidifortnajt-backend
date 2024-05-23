@@ -392,7 +392,7 @@ pub async fn get_posts_trending(limit: i64, offset: i64, date_from: i64) -> Resu
         WHERE 
         posts.user_id NOT IN (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
         AND posts.date > ?
-        ORDER BY (posts.likes / (({} - posts.date) / 60)) ASC
+        ORDER BY (posts.likes / (({} - posts.date + 3600) / 3600)) DESC
         LIMIT ? OFFSET ?",
         timestamp, timestamp
     );

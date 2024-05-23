@@ -135,6 +135,11 @@ pub struct DisplayNameChangeRequest {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct UserNameChangeRequest {
+    pub new_display_name: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct DescriptionChangeRequest {
     pub new_description: String,
 }

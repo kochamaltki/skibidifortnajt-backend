@@ -1480,6 +1480,66 @@ pub async fn change_display_name(
     }
 }
 
+pub async fn change_user_name(
+    token: String,
+    request: UserNameChangeRequest,
+) -> Result<impl warp::Reply, warp::Rejection> {
+    let token = match verify_token(token) {
+        Ok(val) => val,
+        Err(_) => {
+            let r = "Wrong token";
+            return Ok(warp::reply::with_status(
+                warp::reply::json(&r),
+                warp::http::StatusCode::UNAUTHORIZED,
+            ));
+        }
+    };
+
+    let connection = tokio_rusqlite::Connection::open("projekt-db")
+        .await
+        .unwrap();
+    let id = token.claims.uid;
+
+    if is_limited(&connection, token.claims.uid).await && token.claims.is_admin == 0 {
+        let r = "Ur too fast";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::FORBIDDEN,
+        ));
+    }
+
+    if check_user_id(&connection, id).await {
+        let change_query = "UPDATE users SET user_name = ? WHERE user_id = ?";
+        connection
+            .call(move |conn| {
+                let mut statement = conn.prepare(change_query).unwrap();
+                statement
+                    .execute(params![request.new_display_name, id])
+                    .unwrap();
+                Ok(0)
+            })
+            .await
+            .unwrap();
+
+        info!(
+            "User name changed for user with id: {}",
+            token.claims.uid
+        );
+        add_upload_db(&connection, token.claims.uid, 1).await;
+        let r = "User name change successful";
+        Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::OK,
+        ))
+    } else {
+        let r = "User not found";
+        Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::NOT_FOUND,
+        ))
+    }
+}
+
 pub async fn change_description(
     token: String,
     request: DescriptionChangeRequest,
@@ -1870,6 +1930,11 @@ pub fn display_name_change_json(
 
 pub fn description_change_json(
 ) -> impl Filter<Extract = (DescriptionChangeRequest,), Error = warp::Rejection> + Clone {
+    warp::body::content_length_limit(1024 * 16).and(warp::body::json())
+}
+
+pub fn user_name_change_json(
+) -> impl Filter<Extract = (UserNameChangeRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
 

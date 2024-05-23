@@ -129,7 +129,7 @@ pub async fn get_posts_by_tag(tag: String, limit: i64, offset: i64) -> Result<im
     ))
 }
 
-pub async fn get_posts_from_search(phrase: String, limit: i64, offset: i64) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn get_posts_from_search(phrase: String, limit: i64, offset: i64, date_from: i64) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
         .unwrap();
@@ -148,6 +148,8 @@ pub async fn get_posts_from_search(phrase: String, limit: i64, offset: i64) -> R
         WHERE posts.body LIKE ?
         AND posts.user_id NOT IN 
         (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
+        AND posts.date > ?
+        ORDER BY posts.likes DESC
         LIMIT ? OFFSET ?
     ",
         timestamp
@@ -155,7 +157,7 @@ pub async fn get_posts_from_search(phrase: String, limit: i64, offset: i64) -> R
     let post_list = connection
         .call(move |conn| {
             let mut statement = conn.prepare(&query).unwrap();
-            let mut rows = statement.query(params![phrase_cpy, limit, offset]).unwrap();
+            let mut rows = statement.query(params![phrase_cpy, date_from, limit, offset]).unwrap();
             let mut post_vec: Vec<Post> = Vec::new();
             while let Ok(Some(row)) = rows.next() {
                 post_vec.push(Post {
@@ -1514,7 +1516,7 @@ pub async fn change_user_name(
             .call(move |conn| {
                 let mut statement = conn.prepare(change_query).unwrap();
                 statement
-                    .execute(params![request.new_display_name, id])
+                    .execute(params![request.new_user_name, id])
                     .unwrap();
                 Ok(0)
             })

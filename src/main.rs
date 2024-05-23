@@ -74,7 +74,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and_then(validate_token);
 
     let get_posts_from_search = warp::get()
-        .and(warp::path!("api" / "get" / "posts" / "from-search" / String / i64 / i64))
+        .and(warp::path!("api" / "get" / "posts" / "from-search" / String / i64 / i64 / i64))
         .and_then(get_posts_from_search);
 
     let get_users_from_search = warp::get()

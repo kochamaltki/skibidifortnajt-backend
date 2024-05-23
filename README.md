@@ -29,21 +29,7 @@
  - Get: 200 (PostList) sorted by likes ascending
 #### /api/get/posts/trending/{limit}/{offset}/{from_date}
  - Get: 200 (PostList) sorted by (likes / age in minutes)
-```
-Post {
-    post_id: i64
-    user_id: i64
-    date: i64
-    body: string (max 2048 chars)
-    likes: i64
-}
-```
-```
-PostList {
-    post_list: Vec<Post>
-}
-```
-#### /api/get/posts/from-search/{search-phrase}/{limit}/{offset}
+#### /api/get/posts/from-search/{search-phrase}/{limit}/{offset}/{from_date}
  - Get: 200 (PostList)
 ```
 Post {
@@ -129,6 +115,7 @@ PostCreateRequest {
     tags: Vec<string (max 64 chars)>
 }
 ```
+ - With cookies
  - Effect: Adds a post to the db
  - Return: 201 ({post_id:i64}) / 401 ("Wrong token" / "User is banned") / 404 ("User not found")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
@@ -140,6 +127,7 @@ CommentCreateRequest {
     body: string (max 2048 chars)
 }
 ```
+ - With cookies
  - Effect: Adds a comment to the post
  - Return: 201 ({comment_id:i64}) / 401 ("Wrong token" / "User is banned") / 404 ("User not found" / "Post not found")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
@@ -148,9 +136,9 @@ CommentCreateRequest {
 ```
 LikeRequest {
     post_id: i64
-    token: string
 }
 ```
+ - With cookies
  - Effects: Adds like to a post
  - Return: 200 ("Like added") / 406 ("Like already exists")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
@@ -182,9 +170,10 @@ SignupRequest {
  - Post: 
 ```
 UserDeleteRequest {
-    token: string
+    user_id: i64
 }
 ```
+ - With cookies
  - Effect: Deletes a user
  - Return: 200 ("User deleted") / 401 ("Wrong token") / 404 ("User not found")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
@@ -193,9 +182,9 @@ UserDeleteRequest {
 ```
 UserUpgradeRequest {
     user_id: i64
-    token: string
 }
 ```
+ - With cookies
  - Effect: User with given id becomes an admin
  - Note: Token must belong to an admin
  - Return: 200 ("Upgrade succesful") / 401 ("User is not admin" / "Wrong token") / 404 ("User not found")
@@ -207,9 +196,9 @@ UserBanRequest {
     user_id: i64
     ban_length: i64,
     ban_message: string,
-    token: string
 }
 ```
+ - With cookies
  - Effect: User with given id is banned
  - Note: Token must belong to an admin
  - Return: 200 ("Ban succesful") / 401 ("User is not admin" / "Wrong token") / 404 ("User not found")
@@ -219,9 +208,9 @@ UserBanRequest {
 ```
 UserUnbanRequest {
     user_id: i64,
-    token: string
 }
 ```
+ - With cookies
  - Effect: User with given id is unbanned
  - Note: Token must belong to an admin
  - Return: 200 ("Unban succesful") / 401 ("User is not admin" / "Wrong token") / 404 ("User not found")
@@ -231,9 +220,20 @@ UserUnbanRequest {
 ```
 DisplayNameChangeRequest {
     new_display_name: string (max 64 chars)
-    token: string
 }
 ```
+ - With cookies
+ - Effect: User's display name changes
+ - Return: 200 ("Change succesful") / 401 ("Wrong token") / 404 ("User not found")
+ - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
+#### /api/post/change/user-name
+ - Post: 
+```
+UserNameChangeRequest {
+    new_user_name: string (max 64 chars)
+}
+```
+ - With cookies
  - Effect: User's display name changes
  - Return: 200 ("Change succesful") / 401 ("Wrong token") / 404 ("User not found")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
@@ -242,26 +242,26 @@ DisplayNameChangeRequest {
 ```
 DescriptionChangeRequest {
     new_description: string (max 64 chars)
-    token: string
 }
 ```
+ - With cookies
  - Effect: User's description changes
  - Return: 200 ("Change succesful") / 401 ("Wrong token") / 404 ("User not found")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
 #### /api/post/upload/image
  - Post: Image (max 25MB)
+ - With cookies
  - Return: 200 (image-id) / 400 ("Invalid image format" / "File type error" / ) / 401 ("Wrong token") / 500 ("File read error")
  - Headers: 'Content-Type: multipart/form-data', 'auth: {user_token}'
 #### /api/post/add-image-to-post
  - Post:
 ```
 AddImageToPostRequest {
-    token: string,
     image_id: i64,
     post_id: i64
 }
 ```
+ - With cookies
  - Effect: Image is added to post
  - Return: 200 ("Image added to post") / 400 ("Image already added to this post") / 401 ("Wrong token" / "User not authorized") / 404 ("Image not found" / "Post not found")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
-### Types

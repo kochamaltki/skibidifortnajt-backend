@@ -3,6 +3,7 @@ use crate::types::*;
 use crate::auth::*;
 use bytes::BufMut;
 use futures::{StreamExt, TryStreamExt};
+use urlencoding::decode;
 
 use tokio_rusqlite::params;
 use tracing::{error, info};
@@ -138,7 +139,10 @@ pub async fn get_posts_from_search(phrase: String, limit: i64, offset: i64, date
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap()
         .as_secs() as i64;
-    let phrase_cpy = "%".to_string() + &phrase + "%";
+
+    let decoded_phrase = decode(&phrase).unwrap();
+
+    let phrase_cpy = "%".to_string() + &decoded_phrase + "%";
     let query = format!(
         "
         SELECT posts.*, users.user_name
@@ -190,7 +194,11 @@ pub async fn get_users_from_search(phrase: String, limit: i64, offset: i64) -> R
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap()
         .as_secs() as i64;
-    let phrase_cpy = "%".to_string() + &phrase + "%";
+
+
+    let decoded_phrase = decode(&phrase).unwrap();
+
+    let phrase_cpy = "%".to_string() + &decoded_phrase + "%";
     let query = format!(
         "
         SELECT users.user_id, users.user_name, users.display_name, users.description, images.image_file

@@ -1174,6 +1174,10 @@ impl Reject for WrongToken {}
 struct SpacesNotAllowed;
 impl Reject for SpacesNotAllowed {}
 
+#[derive(Debug)]
+struct EmptyNotAllowed;
+impl Reject for EmptyNotAllowed {}
+
 pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
@@ -1181,6 +1185,10 @@ pub async fn signup(request: SignupRequest) -> Result<impl warp::Reply, warp::Re
 
     if request.user_name.contains(" ") {
         return Err(warp::reject::custom(SpacesNotAllowed));
+    }
+
+    if request.user_name.is_empty() {
+        return Err(warp::reject::custom(EmptyNotAllowed));
     }
 
     if check_user_name(&connection, request.user_name.clone()).await {
@@ -1885,6 +1893,11 @@ pub async fn handle_rejection(
     } else if err.find::<SpacesNotAllowed>().is_some() {
         Ok(warp::reply::with_status(
             "Spaces in username not allowed",
+            warp::http::StatusCode::NOT_ACCEPTABLE,
+        ))
+    } else if err.find::<EmptyNotAllowed>().is_some() {
+        Ok(warp::reply::with_status(
+            "Empty username not allowed",
             warp::http::StatusCode::NOT_ACCEPTABLE,
         ))
     } else if err.find::<WrongToken>().is_some() {

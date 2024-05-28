@@ -12,10 +12,6 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::path!("api" / "get" / "posts" / "by-user" / i64 / i64 / i64))
         .and_then(get_posts_by_user);
     
-    let get_posts_by_tag = warp::get()
-        .and(warp::path!("api" / "get" / "posts" / "by-tag" / String / i64 / i64))
-        .and_then(get_posts_by_tag);
-    
     let get_post_by_id = warp::get()
         .and(warp::path!("api" / "get" / "posts" / "by-id" / i64))
         .and_then(get_post_by_id);
@@ -202,7 +198,6 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .or(get_post_by_id)
         .or(ban)
         .or(unban)
-        .or(get_posts_by_tag)
         .or(get_tags_from_post)
         .or(react)
         .or(get_profile_by_id)

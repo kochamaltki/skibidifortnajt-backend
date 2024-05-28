@@ -14,7 +14,9 @@ pub struct Post {
     pub date: i64,
     pub body: String,
     pub likes: i64,
-    pub user_name: String
+    pub user_name: String,
+    pub display_name: String,
+    pub pfp_image: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -24,7 +26,9 @@ pub struct Comment {
     pub user_id: i64,
     pub body: String,
     pub date: i64,
-    pub user_name: String
+    pub user_name: String,
+    pub display_name: String,
+    pub pfp_image: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

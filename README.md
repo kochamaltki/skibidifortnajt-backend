@@ -15,9 +15,6 @@
 #### /api/get/posts/by-user/{id}/{limit}/{offset}
  - Get: 200 (PostList) / 404 ("User not found")
  - Note: Only from user {id}
-#### /api/get/posts/by-tag/{tag}/{limit}/{offset}
- - Get: 200 (PostList) / 404 ("Tag not found")
- - Note: Posts with tag {tag}
 #### /api/get/posts/by-id/{id}/{limit}/{offset}
  - Get: 200 (Post) / 404 ("Post not found")
  - Note: Post with id {id}
@@ -38,6 +35,9 @@ Post {
     date: i64
     body: string (max 2048 chars)
     likes: i64
+    user_name: string
+    display_name: string
+    pfp_image: string
 }
 ```
 ```

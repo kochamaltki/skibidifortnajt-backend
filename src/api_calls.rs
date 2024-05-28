@@ -3,6 +3,7 @@ use crate::types::*;
 use crate::auth::*;
 use bytes::BufMut;
 use futures::{StreamExt, TryStreamExt};
+use tracing::Instrument;
 use urlencoding::decode;
 
 use tokio_rusqlite::params;
@@ -18,9 +19,10 @@ pub async fn get_posts_by_user(user_id: i64, limit: i64, offset: i64) -> Result<
         .await
         .unwrap();
     let query = "
-        SELECT posts.*, users.user_name 
+        SELECT posts.*, users.user_name, users.display_name, images.image_file 
         FROM posts 
         JOIN users ON users.user_id=posts.user_id 
+        LEFT JOIN images ON users.pfp_id=images.image_id
         WHERE users.user_id = ?
         ORDER BY posts.date DESC
         LIMIT ? OFFSET ?";
@@ -54,68 +56,13 @@ pub async fn get_posts_by_user(user_id: i64, limit: i64, offset: i64) -> Result<
                     body: row.get(3).unwrap(),
                     likes: row.get(4).unwrap(),
                     user_name: row.get(5).unwrap(),
-                });
-            }
-            Ok(post_vec)
-        })
-        .await
-        .unwrap();
-
-    let post = PostList { post_list };
-    Ok(warp::reply::with_status(
-        warp::reply::json(&post),
-        warp::http::StatusCode::OK,
-    ))
-}
-
-pub async fn get_posts_by_tag(tag: String, limit: i64, offset: i64) -> Result<impl warp::Reply, warp::Rejection> {
-    let connection = tokio_rusqlite::Connection::open("projekt-db")
-        .await
-        .unwrap();
-    let tag_id = match get_tag_by_name(&connection, tag.clone()).await {
-        Ok(val) => val,
-        Err(_) => {
-            let r = "Tag not found";
-            return Ok(warp::reply::with_status(
-                warp::reply::json(&r),
-                warp::http::StatusCode::NOT_FOUND,
-            ));
-        }
-    };
-
-    let timestamp = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as i64;
-    let query = format!(
-        "
-        SELECT posts.*, users.user_name
-        FROM posts 
-        JOIN posts_tags
-        ON posts.post_id = posts_tags.post_id 
-        JOIN users
-        ON posts.user_id = users.user_id
-        WHERE posts_tags.tag_id = ? 
-        AND posts.user_id NOT IN 
-        (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
-        ORDER BY posts.date DESC
-        LIMIT ? OFFSET ?
-    ",
-        timestamp
-    );
-    let post_list = connection
-        .call(move |conn| {
-            let mut statement = conn.prepare(&query).unwrap();
-            let mut rows = statement.query(params![tag_id, limit, offset]).unwrap();
-            let mut post_vec: Vec<Post> = Vec::new();
-            while let Ok(Some(row)) = rows.next() {
-                post_vec.push(Post {
-                    post_id: row.get(0).unwrap(),
-                    user_id: row.get(1).unwrap(),
-                    date: row.get(2).unwrap(),
-                    body: row.get(3).unwrap(),
-                    likes: row.get(4).unwrap(),
-                    user_name: row.get(5).unwrap(),
+                    display_name: row.get(6).unwrap(),
+                    pfp_image: {
+                        match row.get(7) {
+                            Ok(val) => val,
+                            Err(_) => "".to_string()
+                        }
+                    }
                 });
             }
             Ok(post_vec)
@@ -145,10 +92,11 @@ pub async fn get_posts_from_search(phrase: String, limit: i64, offset: i64, date
     let phrase_cpy = "%".to_string() + &decoded_phrase + "%";
     let query = format!(
         "
-        SELECT posts.*, users.user_name
+        SELECT posts.*, users.user_name, users.display_name, images.image_file
         FROM posts 
         JOIN users
         ON posts.user_id = users.user_id
+        LEFT JOIN images ON users.pfp_id=images.image_id
         WHERE posts.body LIKE ?
         AND posts.user_id NOT IN 
         (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
@@ -171,6 +119,13 @@ pub async fn get_posts_from_search(phrase: String, limit: i64, offset: i64, date
                     body: row.get(3).unwrap(),
                     likes: row.get(4).unwrap(),
                     user_name: row.get(5).unwrap(),
+                    display_name: row.get(6).unwrap(),
+                    pfp_image: {
+                        match row.get(7) {
+                            Ok(val) => val,
+                            Err(_) => "".to_string()
+                        }
+                    }
                 });
             }
             Ok(post_vec)
@@ -251,9 +206,10 @@ pub async fn get_posts(limit: i64, offset: i64) -> Result<impl warp::Reply, warp
         .as_secs() as i64;
     let query = format!(
         "
-        SELECT posts.*, users.user_name       
+        SELECT posts.*, users.user_name, users.display_name, images.image_file
         FROM posts
         JOIN users ON posts.user_id = users.user_id
+        LEFT JOIN images ON users.pfp_id=images.image_id
         WHERE 
         posts.user_id NOT IN (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
         ORDER BY posts.date DESC
@@ -274,6 +230,13 @@ pub async fn get_posts(limit: i64, offset: i64) -> Result<impl warp::Reply, warp
                     body: row.get(3).unwrap(),
                     likes: row.get(4).unwrap(),
                     user_name: row.get(5).unwrap(),
+                    display_name: row.get(6).unwrap(),
+                    pfp_image: {
+                        match row.get(7) {
+                            Ok(val) => val,
+                            Err(_) => "".to_string()
+                        }
+                    }
                 });
             }
             Ok(post_vec)
@@ -298,9 +261,10 @@ pub async fn get_posts_top(limit: i64, offset: i64, date_from: i64) -> Result<im
         .as_secs() as i64;
     let query = format!(
         "
-        SELECT posts.*, users.user_name       
+        SELECT posts.*, users.user_name, users.display_name, images.image_file      
         FROM posts
         JOIN users ON posts.user_id = users.user_id
+        LEFT JOIN images ON users.pfp_id=images.image_id
         WHERE 
         posts.user_id NOT IN (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
         AND posts.date > ?
@@ -322,6 +286,13 @@ pub async fn get_posts_top(limit: i64, offset: i64, date_from: i64) -> Result<im
                     body: row.get(3).unwrap(),
                     likes: row.get(4).unwrap(),
                     user_name: row.get(5).unwrap(),
+                    display_name: row.get(6).unwrap(),
+                    pfp_image: {
+                        match row.get(7) {
+                            Ok(val) => val,
+                            Err(_) => "".to_string()
+                        }
+                    }
                 });
             }
             Ok(post_vec)
@@ -346,9 +317,10 @@ pub async fn get_posts_bottom(limit: i64, offset: i64, date_from: i64) -> Result
         .as_secs() as i64;
     let query = format!(
         "
-        SELECT posts.*, users.user_name       
+        SELECT posts.*, users.user_name, users.display_name, images.image_file       
         FROM posts
         JOIN users ON posts.user_id = users.user_id
+        LEFT JOIN images ON users.pfp_id=images.image_id
         WHERE 
         posts.user_id NOT IN (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
         AND posts.date > ?
@@ -370,6 +342,13 @@ pub async fn get_posts_bottom(limit: i64, offset: i64, date_from: i64) -> Result
                     body: row.get(3).unwrap(),
                     likes: row.get(4).unwrap(),
                     user_name: row.get(5).unwrap(),
+                    display_name: row.get(6).unwrap(),
+                    pfp_image: {
+                        match row.get(7) {
+                            Ok(val) => val,
+                            Err(_) => "".to_string()
+                        }
+                    }
                 });
             }
             Ok(post_vec)
@@ -394,9 +373,10 @@ pub async fn get_posts_trending(limit: i64, offset: i64, date_from: i64) -> Resu
         .as_secs() as i64;
     let query = format!(
         "
-        SELECT posts.*, users.user_name       
+        SELECT posts.*, users.user_name, users.display_name, images.image_file       
         FROM posts
         JOIN users ON posts.user_id = users.user_id
+        LEFT JOIN images ON users.pfp_id=images.image_id
         WHERE 
         posts.user_id NOT IN (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
         AND posts.date > ?
@@ -418,6 +398,13 @@ pub async fn get_posts_trending(limit: i64, offset: i64, date_from: i64) -> Resu
                     body: row.get(3).unwrap(),
                     likes: row.get(4).unwrap(),
                     user_name: row.get(5).unwrap(),
+                    display_name: row.get(6).unwrap(),
+                    pfp_image: {
+                        match row.get(7) {
+                            Ok(val) => val,
+                            Err(_) => "".to_string()
+                        }
+                    }
                 });
             }
             Ok(post_vec)
@@ -435,10 +422,11 @@ pub async fn get_posts_trending(limit: i64, offset: i64, date_from: i64) -> Resu
 pub async fn get_comments_from_post(post_id: i64) -> Result<impl warp::Reply, warp::Rejection> {
     let connection = tokio_rusqlite::Connection::open("projekt-db").await.unwrap();
     let query = "
-        SELECT comments.*, users.user_name
+        SELECT comments.*, users.user_name, users.display_name, images.image_file
         FROM comments
         JOIN users
         ON users.user_id = comments.user_id
+        LEFT JOIN images ON users.pfp_id=images.image_id
         WHERE comments.post_id = ?
     ";
     
@@ -463,7 +451,14 @@ pub async fn get_comments_from_post(post_id: i64) -> Result<impl warp::Reply, wa
                         user_id: row.get(2).unwrap(), 
                         body: row.get(3).unwrap(), 
                         date: row.get(4).unwrap(), 
-                        user_name: row.get(5).unwrap() 
+                        user_name: row.get(5).unwrap(),
+                        display_name: row.get(6).unwrap(),
+                    pfp_image: {
+                        match row.get(7) {
+                            Ok(val) => val,
+                            Err(_) => "".to_string()
+                        }
+                    }
                     }
                 );
             }
@@ -570,9 +565,12 @@ pub async fn get_post_by_id(post_id: i64) -> Result<impl warp::Reply, warp::Reje
     let connection = tokio_rusqlite::Connection::open("projekt-db")
         .await
         .unwrap();
-    let query = "SELECT posts.*, users.user_name FROM posts
+    let query = "
+        SELECT posts.*, users.user_name, users.display_name, images.image_file 
+        FROM posts
         JOIN users
         ON posts.user_id = users.user_id
+        LEFT JOIN images ON users.pfp_id=images.image_id
         WHERE posts.post_id = ?";
 
     let post = connection
@@ -588,6 +586,13 @@ pub async fn get_post_by_id(post_id: i64) -> Result<impl warp::Reply, warp::Reje
                     body: row.get(3).unwrap(),
                     likes: row.get(4).unwrap(),
                     user_name: row.get(5).unwrap(),
+                    display_name: row.get(6).unwrap(),
+                    pfp_image: {
+                        match row.get(7) {
+                            Ok(val) => val,
+                            Err(_) => "".to_string()
+                        }
+                    }
                 };
             } else {
                 post = Post {
@@ -597,6 +602,8 @@ pub async fn get_post_by_id(post_id: i64) -> Result<impl warp::Reply, warp::Reje
                     body: "".to_string(),
                     likes: 0,
                     user_name: "".to_string(),
+                    display_name: "".to_string(),
+                    pfp_image: "".to_string(),
                 };
             }
             Ok(post)
@@ -890,6 +897,8 @@ pub async fn post(
             body: request.body,
             likes: 0,
             user_name: "".to_string(),
+            display_name: "".to_string(),
+            pfp_image: "".to_string()
         },
         request.tags,
     )

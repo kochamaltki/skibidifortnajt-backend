@@ -6,7 +6,6 @@ pub mod types;
 pub mod database_functions;
 pub mod image_processing;
 use crate::api_calls::*;
-use crate::image_processing::*;
 
 
 pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
@@ -228,7 +227,6 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
 
 #[tokio::main]
 async fn main() {
-    crop_and_resize("default.png".to_string());
     tracing_subscriber::fmt::init();
     let cors = warp::cors().allow_any_origin()
         .allow_methods(vec!["GET", "POST", "DELETE", "OPTIONS"])

@@ -4,6 +4,7 @@ pub mod auth;
 pub mod api_calls;
 pub mod types;
 pub mod database_functions;
+pub mod image_processing;
 use crate::api_calls::*;
 
 

@@ -1,6 +1,7 @@
 use crate::database_functions::*;
 use crate::types::*;
 use crate::auth::*;
+use crate::image_processing::*;
 use bytes::BufMut;
 use futures::{StreamExt, TryStreamExt};
 use tracing::Instrument;
@@ -1716,6 +1717,7 @@ pub async fn upload_image(
                         error!("error writing file: {}", e);
                         warp::reject::reject()
                     })?;
+                    crop_and_resize(pfp_file_name);
                     add_upload_db(&connection, token.claims.uid, 10).await;
                     info!("created file: {}", file_name);
                     return Ok(warp::reply::with_status(

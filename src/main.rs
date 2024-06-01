@@ -182,6 +182,12 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .and(warp::cookie::<String>("token"))
         .and(set_pfp_json())
         .and_then(set_pfp);
+    
+    let remove_pfp = warp::post()
+        .and(warp::path!("api" / "post" / "remove-pfp"))
+        .and(warp::cookie::<String>("token"))
+        .and(remove_pfp_json())
+        .and_then(remove_pfp);
 
     get_posts_by_user
         .or(post)
@@ -218,6 +224,7 @@ pub fn routes() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejecti
         .or(get_comments_from_post)
         .or(get_posts_from_search)
         .or(get_users_from_search)
+        .or(remove_pfp)
 }
 
 #[tokio::main]

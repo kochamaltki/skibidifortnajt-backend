@@ -265,3 +265,22 @@ AddImageToPostRequest {
  - Effect: Image is added to post
  - Return: 200 ("Image added to post") / 400 ("Image already added to this post") / 401 ("Wrong token" / "User not authorized") / 404 ("Image not found" / "Post not found")
  - Headers: 'Content-Type: application/json' 'Content-Type: text/plain'
+#### /api/post/set-pfp
+ - Post:
+```
+SetPFPRequest {
+    image_id: i64,
+    user_id: i64
+}
+```
+ - With cookies
+ - Effect: User's PFP is set to the image
+#### /api/post/remove-pfp
+ - Post:
+```
+RemovePFPRequest {
+    user_id: i64
+}
+```
+ - With cookies
+ - Effect: User's PFP is deleted

@@ -159,3 +159,8 @@ pub struct SetPFPRequest {
     pub image_id: i64,
     pub user_id: i64
 }
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct RemovePFPRequest {
+    pub user_id: i64
+}

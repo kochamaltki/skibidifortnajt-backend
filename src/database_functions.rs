@@ -155,6 +155,13 @@ pub async fn purge_data(connection: &Connection, user_id: i64) {
         statement.execute(params![user_id]).unwrap();
         Ok(0)
     }).await.unwrap();
+    
+    let user_delete_query = "DELETE FROM users WHERE user_id = ?";
+    connection.call(move |conn| {
+        let mut statement = conn.prepare(user_delete_query).unwrap();
+        statement.execute(params![user_id]).unwrap();
+        Ok(0)
+    }).await.unwrap();
 }
 
 pub async fn get_next_post_id(connection: &Connection) -> Result<i64, &str> {
@@ -503,6 +510,16 @@ pub async fn assign_image_to_user(connection: &Connection, user_id: i64, image_i
     }).await.unwrap();
     
     Ok(())
+}
+
+pub async fn remove_image_from_user(connection: &Connection, user_id: i64) {
+    let image_query = "UPDATE users SET pfp_id='' WHERE user_id=?";
+
+    connection.call(move |conn| {
+        let mut statement = conn.prepare(image_query).unwrap();
+        statement.execute(params![user_id]).unwrap();
+        Ok(0)
+    }).await.unwrap();
 }
 
 pub async fn add_upload_db(connection: &Connection, user_id: i64, weight: i16) {

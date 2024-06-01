@@ -1254,7 +1254,7 @@ pub async fn delete_user(
     }
 }
 
-pub async fn delete_post(token: String, request: PostDeleteRequest,) -> Result<impl warp::Reply, warp::Rejection> {
+pub async fn delete_post(token: String, _request: PostDeleteRequest,) -> Result<impl warp::Reply, warp::Rejection> {
     info!("{}", token);
     let token = match verify_token(token) {
         Ok(val) => val,
@@ -1267,23 +1267,9 @@ pub async fn delete_post(token: String, request: PostDeleteRequest,) -> Result<i
         .unwrap();
     let id = token.claims.uid;
     if check_user_id(&connection, id).await || token.claims.is_admin == 1 {
-        let delete_query = "
-            DELETE FROM posts WHERE post_id = ?;
-            DELETE FROM posts_tags WHERE post_id = ?;
-            DELETE FROM posts_images WHERE post_id = ?"; // nie wszystko jest usuwane, naprawic
-        connection
-            .call(move |conn| {
-                let mut statement = conn.prepare(delete_query).unwrap();
-                statement.execute(params![request.post_id]).unwrap();
-                Ok(0)
-            })
-            .await
-            .unwrap();
-
-        info!("Post {} deleted", id);
+        purge_data(&connection, id).await;
         let r = "Post deleted";
         let res = warp::reply::with_status(r, warp::http::StatusCode::OK);
-        let res = warp::reply::with_header(res, "Access-Control-Allow-Origin", "*");
         Ok(res)
     } else {
         Err(warp::reject::custom(UserNotFound))
@@ -1802,6 +1788,51 @@ pub async fn set_pfp(
     }
 }
 
+pub async fn remove_pfp(
+    token: String,
+    _request: RemovePFPRequest,
+) -> Result<impl warp::Reply, warp::Rejection> {
+    let connection = tokio_rusqlite::Connection::open("projekt-db")
+        .await
+        .unwrap();
+
+    let token = match verify_token(token) {
+        Ok(val) => val,
+        Err(_) => {
+            let r = "Wrong token";
+            return Ok(warp::reply::with_status(
+                warp::reply::json(&r),
+                warp::http::StatusCode::UNAUTHORIZED,
+            ));
+        }
+    };
+
+    if is_limited(&connection, token.claims.uid).await && token.claims.is_admin == 0 {
+        let r = "Ur too fast";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::FORBIDDEN,
+        ));
+    }
+
+    if !check_user_id(&connection, token.claims.uid).await {
+        let r = "User not found";
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&r),
+            warp::http::StatusCode::NOT_FOUND,
+        ));
+    }
+
+    add_upload_db(&connection, token.claims.uid, 1).await;
+    remove_image_from_user(&connection, token.claims.uid).await;
+    
+    let r = "PFP deleted";
+    Ok(warp::reply::with_status(
+        warp::reply::json(&r),
+        warp::http::StatusCode::OK,
+    ))
+}
+
 pub async fn add_image_to_post(
     token: String,
     request: AddImageToPostRequest,
@@ -1992,5 +2023,10 @@ pub fn image_to_post_add_json(
 
 pub fn set_pfp_json(
 ) -> impl Filter<Extract = (SetPFPRequest,), Error = warp::Rejection> + Clone {
+    warp::body::content_length_limit(1024 * 16).and(warp::body::json())
+}
+
+pub fn remove_pfp_json(
+) -> impl Filter<Extract = (RemovePFPRequest,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }

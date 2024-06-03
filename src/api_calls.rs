@@ -429,6 +429,7 @@ pub async fn get_comments_from_post(post_id: i64) -> Result<impl warp::Reply, wa
         ON users.user_id = comments.user_id
         LEFT JOIN images ON users.pfp_id=images.image_id
         WHERE comments.post_id = ?
+        ORDER BY comments.date DESC
     ";
     
     if !check_post(&connection, post_id).await {

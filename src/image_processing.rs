@@ -12,7 +12,19 @@ pub fn crop_and_resize(path: String) {
 	let mid_x = width/2;
 	let mid_y = height/2;
 
-	let cropped_img = crop_imm(&img, mid_x-temp_size/2, mid_y-temp_size/2, mid_x+temp_size/2, mid_y+temp_size/2);
+	let final_x = mid_x - temp_size/2;
+	// if final_x == 0 {
+	// 	final_x += 0; wtf
+	// }
+
+	let final_y = mid_y - temp_size/2;
+	// if final_y == 0 {
+	// 	final_y += 0; przez chwile bylo potrzebne a teraz juz chyba nie?
+	// }
+
+	// println!("{} {} {}", mid_x, mid_y, temp_size);
+	let cropped_img = crop_imm(&img, final_x, final_y, temp_size, temp_size);
+	// println!("{} {} {} {}", final_x,  final_y, temp_size, temp_size);
 	cropped_img
             .to_image()
             .save_with_format(&path, ImageFormat::Png)

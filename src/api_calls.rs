@@ -20,11 +20,14 @@ pub async fn get_posts_by_user(user_id: i64, limit: i64, offset: i64) -> Result<
         .await
         .unwrap();
     let query = "
-        SELECT posts.*, users.user_name, users.display_name, images.image_file 
+        SELECT posts.*, users.user_name, users.display_name, images.image_file, 
+        COUNT(comments.comment_id)
         FROM posts 
         JOIN users ON users.user_id=posts.user_id 
         LEFT JOIN images ON users.pfp_id=images.image_id
+        LEFT JOIN comments ON comments.post_id=posts.post_id
         WHERE users.user_id = ?
+        GROUP BY posts.post_id
         ORDER BY posts.date DESC
         LIMIT ? OFFSET ?";
 
@@ -63,7 +66,8 @@ pub async fn get_posts_by_user(user_id: i64, limit: i64, offset: i64) -> Result<
                             Ok(val) => val,
                             Err(_) => "".to_string()
                         }
-                    }
+                    },
+                    like_count: row.get(8).unwrap()
                 });
             }
             Ok(post_vec)
@@ -93,15 +97,18 @@ pub async fn get_posts_from_search(phrase: String, limit: i64, offset: i64, date
     let phrase_cpy = "%".to_string() + &decoded_phrase + "%";
     let query = format!(
         "
-        SELECT posts.*, users.user_name, users.display_name, images.image_file
+        SELECT posts.*, users.user_name, users.display_name, images.image_file,
+        COUNT(comments.comment_id)
         FROM posts 
         JOIN users
         ON posts.user_id = users.user_id
         LEFT JOIN images ON users.pfp_id=images.image_id
+        LEFT JOIN comments ON comments.post_id=posts.post_id
         WHERE posts.body LIKE ?
         AND posts.user_id NOT IN 
         (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
         AND posts.date > ?
+        GROUP BY posts.post_id
         ORDER BY posts.likes DESC
         LIMIT ? OFFSET ?
     ",
@@ -126,7 +133,8 @@ pub async fn get_posts_from_search(phrase: String, limit: i64, offset: i64, date
                             Ok(val) => val,
                             Err(_) => "".to_string()
                         }
-                    }
+                    },
+                    like_count: row.get(8).unwrap()
                 });
             }
             Ok(post_vec)
@@ -207,12 +215,15 @@ pub async fn get_posts(limit: i64, offset: i64) -> Result<impl warp::Reply, warp
         .as_secs() as i64;
     let query = format!(
         "
-        SELECT posts.*, users.user_name, users.display_name, images.image_file
+        SELECT posts.*, users.user_name, users.display_name, images.image_file,
+        COUNT(comments.comment_id)
         FROM posts
         JOIN users ON posts.user_id = users.user_id
         LEFT JOIN images ON users.pfp_id=images.image_id
+        LEFT JOIN comments ON comments.post_id=posts.post_id
         WHERE 
         posts.user_id NOT IN (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
+        GROUP BY posts.post_id
         ORDER BY posts.date DESC
         LIMIT ? OFFSET ?",
         timestamp
@@ -237,7 +248,9 @@ pub async fn get_posts(limit: i64, offset: i64) -> Result<impl warp::Reply, warp
                             Ok(val) => val,
                             Err(_) => "".to_string()
                         }
-                    }
+                    },
+                    like_count: row.get(8).unwrap()
+
                 });
             }
             Ok(post_vec)
@@ -262,13 +275,16 @@ pub async fn get_posts_top(limit: i64, offset: i64, date_from: i64) -> Result<im
         .as_secs() as i64;
     let query = format!(
         "
-        SELECT posts.*, users.user_name, users.display_name, images.image_file      
+        SELECT posts.*, users.user_name, users.display_name, images.image_file,    
+        COUNT(comments.comment_id)
         FROM posts
         JOIN users ON posts.user_id = users.user_id
         LEFT JOIN images ON users.pfp_id=images.image_id
+        LEFT JOIN comments ON comments.post_id=posts.post_id
         WHERE 
         posts.user_id NOT IN (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
         AND posts.date > ?
+        GROUP BY posts.post_id
         ORDER BY posts.likes DESC
         LIMIT ? OFFSET ?",
         timestamp
@@ -293,7 +309,8 @@ pub async fn get_posts_top(limit: i64, offset: i64, date_from: i64) -> Result<im
                             Ok(val) => val,
                             Err(_) => "".to_string()
                         }
-                    }
+                    },
+                    like_count: row.get(8).unwrap()
                 });
             }
             Ok(post_vec)
@@ -318,13 +335,16 @@ pub async fn get_posts_bottom(limit: i64, offset: i64, date_from: i64) -> Result
         .as_secs() as i64;
     let query = format!(
         "
-        SELECT posts.*, users.user_name, users.display_name, images.image_file       
+        SELECT posts.*, users.user_name, users.display_name, images.image_file,     
+        COUNT(comments.comment_id)
         FROM posts
         JOIN users ON posts.user_id = users.user_id
         LEFT JOIN images ON users.pfp_id=images.image_id
+        LEFT JOIN comments ON comments.post_id=posts.post_id
         WHERE 
         posts.user_id NOT IN (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
         AND posts.date > ?
+        GROUP BY posts.post_id
         ORDER BY posts.likes ASC
         LIMIT ? OFFSET ?",
         timestamp
@@ -349,7 +369,8 @@ pub async fn get_posts_bottom(limit: i64, offset: i64, date_from: i64) -> Result
                             Ok(val) => val,
                             Err(_) => "".to_string()
                         }
-                    }
+                    },
+                    like_count: row.get(8).unwrap()
                 });
             }
             Ok(post_vec)
@@ -374,13 +395,16 @@ pub async fn get_posts_trending(limit: i64, offset: i64, date_from: i64) -> Resu
         .as_secs() as i64;
     let query = format!(
         "
-        SELECT posts.*, users.user_name, users.display_name, images.image_file       
+        SELECT posts.*, users.user_name, users.display_name, images.image_file,     
+        COUNT(comments.comment_id)
         FROM posts
         JOIN users ON posts.user_id = users.user_id
         LEFT JOIN images ON users.pfp_id=images.image_id
+        LEFT JOIN comments ON comments.post_id=posts.post_id
         WHERE 
         posts.user_id NOT IN (SELECT user_id FROM bans WHERE is_active = 1 AND expires_on > {})
         AND posts.date > ?
+        GROUP BY posts.post_id
         ORDER BY (posts.likes / (({} - posts.date + 3600) / 3600)) DESC
         LIMIT ? OFFSET ?",
         timestamp, timestamp
@@ -405,7 +429,8 @@ pub async fn get_posts_trending(limit: i64, offset: i64, date_from: i64) -> Resu
                             Ok(val) => val,
                             Err(_) => "".to_string()
                         }
-                    }
+                    },
+                    like_count: row.get(8).unwrap()
                 });
             }
             Ok(post_vec)
@@ -568,10 +593,12 @@ pub async fn get_post_by_id(post_id: i64) -> Result<impl warp::Reply, warp::Reje
         .await
         .unwrap();
     let query = "
-        SELECT posts.*, users.user_name, users.display_name, images.image_file 
+        SELECT posts.*, users.user_name, users.display_name, images.image_file,
+        COUNT(comments.comment_id)
         FROM posts
         JOIN users
         ON posts.user_id = users.user_id
+        LEFT JOIN comments ON comments.post_id=posts.post_id
         LEFT JOIN images ON users.pfp_id=images.image_id
         WHERE posts.post_id = ?";
 
@@ -594,7 +621,8 @@ pub async fn get_post_by_id(post_id: i64) -> Result<impl warp::Reply, warp::Reje
                             Ok(val) => val,
                             Err(_) => "".to_string()
                         }
-                    }
+                    },
+                    like_count: row.get(8).unwrap()
                 };
             } else {
                 post = Post {
@@ -606,6 +634,7 @@ pub async fn get_post_by_id(post_id: i64) -> Result<impl warp::Reply, warp::Reje
                     user_name: "".to_string(),
                     display_name: "".to_string(),
                     pfp_image: "".to_string(),
+                    like_count: 0
                 };
             }
             Ok(post)
@@ -900,7 +929,8 @@ pub async fn post(
             likes: 0,
             user_name: "".to_string(),
             display_name: "".to_string(),
-            pfp_image: "".to_string()
+            pfp_image: "".to_string(),
+            like_count: 0
         },
         request.tags,
     )

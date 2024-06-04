@@ -17,6 +17,7 @@ pub struct Post {
     pub user_name: String,
     pub display_name: String,
     pub pfp_image: String,
+    pub like_count: i64
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
